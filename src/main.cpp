@@ -1,12 +1,18 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <main.h>
+#include "SPIFFS.h"
+
+using namespace std;
 
 float temperature, humidity, pressure, altitude;
+bool ch1, ch2, ch3, ch4, ch5, ch6;
 
 /*Put your SSID & Password*/
 const char *ssid = "Csepp2";       // Enter SSID here
 const char *password = "Karolyi1"; // Enter Password here
+
+vector<String> v;
 
 WebServer server(80);
 
@@ -31,7 +37,11 @@ void setup()
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 
+  InitFS();
+  GetFile("/Index.html");
+
   server.on("/", handle_OnRoot);
+  server.serveStatic("/", SPIFFS, "/");
   server.onNotFound(handle_NotFound);
 
   server.begin();
@@ -40,56 +50,129 @@ void setup()
 
 void loop()
 {
+  // int hallValue = hallRead();
+  // Serial.print("Hall: ");
+  // Serial.println(hallValue);
+  // delay(100);
+
   server.handleClient();
 }
 
 void handle_OnRoot()
 {
-  temperature = 100;
-  humidity = 110;
-  pressure = 120;
-  altitude = 130;
-  server.send(200, "text/html", SendHTML(temperature, humidity, pressure, altitude));
-  Serial.print(temperature);
-  Serial.print(humidity);
-  Serial.print(pressure);
-  Serial.println(altitude);
+  Serial.println("Starting handle request");
+  ch1 = false;
+  ch2 = false;
+  ch3 = true;
+  ch4 = false;
+  ch5 = false;
+  ch6 = false;
+  String body = GetHtml(ch1, ch2, ch3, ch4, ch5, ch6);
+  server.send(200, "text/html", body);
+  Serial.println("Finished");
 }
+
+// void handle_OnRoot()
+// {
+//   Serial.println("Starting handle request");
+//   temperature = 100;
+//   humidity = 110;
+//   pressure = 120;
+//   altitude = 130;
+//   server.send(200, "text/html", SendHTML(temperature, humidity, pressure, altitude));
+//   Serial.print(temperature);
+//   Serial.print(humidity);
+//   Serial.print(pressure);
+//   Serial.println(altitude);
+// }
 
 void handle_NotFound()
 {
   server.send(404, "text/plain", "Page not found");
 }
 
+String GetHtml(bool ch1, bool ch2, bool ch3, bool ch4, bool ch5, bool ch6)
+{
+  String ptr;
+  for (String s : v)
+  {
+    ptr += s;
+  }
+
+  ptr.replace("Ch1", ch1 ? "X" : "_");
+  ptr.replace("Ch2", ch2 ? "X" : "_");
+  ptr.replace("Ch3", ch3 ? "X" : "_");
+  ptr.replace("Ch4", ch4 ? "X" : "_");
+  ptr.replace("Ch5", ch5 ? "X" : "_");
+  ptr.replace("Ch6", ch6 ? "X" : "_");
+
+  return ptr;
+}
+
 String SendHTML(float temperature, float humidity, float pressure, float altitude)
 {
-  String ptr = "<!DOCTYPE html> <html>\n";
-  ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-  ptr += "<title>ESP32 Weather Station</title>\n";
-  ptr += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
-  ptr += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
-  ptr += "p {font-size: 24px;color: #444444;margin-bottom: 10px;}\n";
-  ptr += "</style>\n";
-  ptr += "</head>\n";
-  ptr += "<body>\n";
-  ptr += "<div id=\"webpage\">\n";
-  ptr += "<h1>ESP32 Weather Station</h1>\n";
-  ptr += "<p>Temperature: ";
-  ptr += temperature;
-  ptr += "&deg;C</p>";
-  ptr += "<p>Humidity: ";
-  ptr += humidity;
-  ptr += "%</p>";
-  ptr += "<p>Pressure: ";
-  ptr += pressure;
-  ptr += "hPa</p>";
-  ptr += "<p>Altitude: ";
-  ptr += altitude;
-  ptr += "m</p>";
-  ptr += "</div>\n";
-  ptr += "</body>\n";
-  ptr += "</html>\n";
+  String ptr;
+  for (String s : v)
+  {
+    ptr += s;
+  }
+
   return ptr;
+
+  // String ptr = "<!DOCTYPE html> <html>\n";
+  // ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+  // ptr += "<title>ESP32 Weather Station</title>\n";
+  // ptr += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
+  // ptr += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
+  // ptr += "p {font-size: 24px;color: #444444;margin-bottom: 10px;}\n";
+  // ptr += "</style>\n";
+  // ptr += "</head>\n";
+  // ptr += "<body>\n";
+  // ptr += "<div id=\"webpage\">\n";
+  // ptr += "<h1>ESP32 Weather Station</h1>\n";
+  // ptr += "<p>Temperature: ";
+  // ptr += temperature;
+  // ptr += "&deg;C</p>";
+  // ptr += "<p>Humidity: ";
+  // ptr += humidity;
+  // ptr += "%</p>";
+  // ptr += "<p>Pressure: ";
+  // ptr += pressure;
+  // ptr += "hPa</p>";
+  // ptr += "<p>Altitude: ";
+  // ptr += altitude;
+  // ptr += "m</p>";
+  // ptr += "</div>\n";
+  // ptr += "</body>\n";
+  // ptr += "</html>\n";
+  // return ptr;
+}
+
+void InitFS()
+{
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+}
+
+void GetFile(String fileName)
+{
+  File file = SPIFFS.open(fileName);
+  if (!file)
+  {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+
+  // vector<String> v;
+  while (file.available())
+  {
+    v.push_back(file.readStringUntil('\n'));
+  }
+
+  file.close();
 }
 
 //------------------------------------------------------
@@ -300,14 +383,14 @@ String SendHTML(float temperature, float humidity, float pressure, float altitud
 //   WiFi.softAP(ssid, password);
 //   WiFi.softAPConfig(local_ip, gateway, subnet);
 //   delay(100);
-  
+
 //   server.on("/", handle_OnConnect);
 //   server.on("/led1on", handle_led1on);
 //   server.on("/led1off", handle_led1off);
 //   server.on("/led2on", handle_led2on);
 //   server.on("/led2off", handle_led2off);
 //   server.onNotFound(handle_NotFound);
-  
+
 //   server.begin();
 //   Serial.println("HTTP server started");
 // }
@@ -317,7 +400,7 @@ String SendHTML(float temperature, float humidity, float pressure, float altitud
 //   {digitalWrite(LED1pin, HIGH);}
 //   else
 //   {digitalWrite(LED1pin, LOW);}
-  
+
 //   if(LED2status)
 //   {digitalWrite(LED2pin, HIGH);}
 //   else
@@ -328,31 +411,31 @@ String SendHTML(float temperature, float humidity, float pressure, float altitud
 //   LED1status = LOW;
 //   LED2status = LOW;
 //   Serial.println("GPIO4 Status: OFF | GPIO5 Status: OFF");
-//   server.send(200, "text/html", SendHTML(LED1status,LED2status)); 
+//   server.send(200, "text/html", SendHTML(LED1status,LED2status));
 // }
 
 // void handle_led1on() {
 //   LED1status = HIGH;
 //   Serial.println("GPIO4 Status: ON");
-//   server.send(200, "text/html", SendHTML(true,LED2status)); 
+//   server.send(200, "text/html", SendHTML(true,LED2status));
 // }
 
 // void handle_led1off() {
 //   LED1status = LOW;
 //   Serial.println("GPIO4 Status: OFF");
-//   server.send(200, "text/html", SendHTML(false,LED2status)); 
+//   server.send(200, "text/html", SendHTML(false,LED2status));
 // }
 
 // void handle_led2on() {
 //   LED2status = HIGH;
 //   Serial.println("GPIO5 Status: ON");
-//   server.send(200, "text/html", SendHTML(LED1status,true)); 
+//   server.send(200, "text/html", SendHTML(LED1status,true));
 // }
 
 // void handle_led2off() {
 //   LED2status = LOW;
 //   Serial.println("GPIO5 Status: OFF");
-//   server.send(200, "text/html", SendHTML(LED1status,false)); 
+//   server.send(200, "text/html", SendHTML(LED1status,false));
 // }
 
 // void handle_NotFound(){
@@ -376,7 +459,7 @@ String SendHTML(float temperature, float humidity, float pressure, float altitud
 //   ptr +="<body>\n";
 //   ptr +="<h1>ESP32 Web Server</h1>\n";
 //   ptr +="<h3>Using Access Point(AP) Mode</h3>\n";
-  
+
 //    if(led1stat)
 //   {ptr +="<p>LED1 Status: ON</p><a class=\"button button-off\" href=\"/led1off\">OFF</a>\n";}
 //   else
