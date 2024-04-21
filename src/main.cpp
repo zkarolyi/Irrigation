@@ -2,6 +2,7 @@
 #include <WebServer.h>
 #include <main.h>
 #include "SPIFFS.h"
+#include <LiquidCrystal_I2C.h>
 
 using namespace std;
 
@@ -16,26 +17,111 @@ vector<String> v;
 
 WebServer server(80);
 
+LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 chars and 2 line display
+static unsigned long lastScrollTime = 0;
+
+void Display(String message, int row, bool first = true, bool last = false, int timeout = -1)
+{
+  displayTimeout = timeout;
+  Serial.println(message);
+  if (first)
+  {
+    displayLinesText[row] = "";
+  }
+  displayLinesText[row] += message;
+  if (last)
+  {
+    if (displayLinesText[row].length() > 16)
+    {
+      displayLinesText[row] += "   ";
+    }
+    while (displayLinesText[row].length() < 16)
+    {
+      displayLinesText[row] += " ";
+    }
+  }
+  displayLinesPosition[row] = 0;
+}
+
+void InitializeLCD()
+{
+  lcd.init();
+  lcd.clear();
+  lcd.backlight();
+
+  lcd.createChar(0, check);
+  lcd.createChar(1, cross);
+  lcd.createChar(2, retarrow);
+}
+
+void displayText()
+{
+  if (millis() - displayLastUpdate < displayLastUpdateInterval)
+  {
+    return;
+  }
+  displayLastUpdate = millis();
+  if(displayTimeout > 0)
+  {
+    displayTimeout -= displayLastUpdateInterval;
+    if(displayTimeout <= 0)
+    {
+      displayLinesText[0] = "";
+      displayLinesText[1] = "";
+      lcd.clear();
+    }
+  }
+  for (int i = 0; i < 2; i++)
+  {
+    lcd.setCursor(0, i);
+    if (displayLinesText[i].length() <= 16)
+    {
+      lcd.print(displayLinesText[i]);
+    }
+    else
+    {
+      if (displayLinesPosition[i] + 16 > displayLinesText[i].length())
+      {
+        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
+        lcd.print(displayLinesText[i].substring(0, 16 - (displayLinesText[i].length() - displayLinesPosition[i])));
+      }
+      else
+      {
+        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + 16));
+      }
+      lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + 16));
+      displayLinesPosition[i]++;
+      if (displayLinesPosition[i] >= displayLinesText[i].length())
+      {
+        displayLinesPosition[i] = 0;
+      }
+    }
+  }
+}
+
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   delay(100);
-  Serial.println("Connecting to ");
-  Serial.println(ssid);
+
+  InitializeLCD();
+
+  Display("Connecting to ", 0);
+  Display(ssid, 0, false, true);
 
   // connect to your local wi-fi network
   WiFi.begin(ssid, password);
 
+  Display(".", 1, true, false);
   // check wi-fi is connected to wi-fi network
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
-    Serial.print(".");
+    Display(".", 1, false, false);
   }
-  Serial.println("");
-  Serial.println("WiFi connected..!");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
+  Display("WI-FI connected", 0, true, true);
+  Display("IP address: ", 1);
+  Display(WiFi.localIP().toString(), 1, false, true);
 
   InitFS();
   GetFile("/Index.html");
@@ -45,7 +131,8 @@ void setup()
   server.onNotFound(handle_NotFound);
 
   server.begin();
-  Serial.println("HTTP server started");
+  Display("HTTP server started", 0, true, true);
+  lcd.write(0);
 }
 
 void loop()
@@ -54,13 +141,13 @@ void loop()
   // Serial.print("Hall: ");
   // Serial.println(hallValue);
   // delay(100);
-
+  displayText();
   server.handleClient();
 }
 
 void handle_OnRoot()
 {
-  Serial.println("Starting handle request");
+  Display("Starting handle request", 0, true, true, 5000);
   ch1 = false;
   ch2 = false;
   ch3 = true;
@@ -69,7 +156,7 @@ void handle_OnRoot()
   ch6 = false;
   String body = GetHtml(ch1, ch2, ch3, ch4, ch5, ch6);
   server.send(200, "text/html", body);
-  Serial.println("Finished");
+  Display("Finished.", 1, true, true, 5000);
 }
 
 // void handle_OnRoot()
@@ -88,6 +175,7 @@ void handle_OnRoot()
 
 void handle_NotFound()
 {
+  Display("Page not found", 0, true, true);
   server.send(404, "text/plain", "Page not found");
 }
 
@@ -152,7 +240,7 @@ void InitFS()
 {
   if (!SPIFFS.begin(true))
   {
-    Serial.println("An Error has occurred while mounting SPIFFS");
+    Display("An Error has occurred while mounting SPIFFS", 0, true, true);
     return;
   }
 }
@@ -162,7 +250,7 @@ void GetFile(String fileName)
   File file = SPIFFS.open(fileName);
   if (!file)
   {
-    Serial.println("Failed to open file for reading");
+    Display("Failed to open file for reading", 0, true, true);
     return;
   }
 
