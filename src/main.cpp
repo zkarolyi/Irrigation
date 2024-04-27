@@ -3,6 +3,8 @@
 #include <main.h>
 #include "SPIFFS.h"
 #include <LiquidCrystal_I2C.h>
+#include <ArduinoOTA.h>
+#include <Arduino.h>
 
 using namespace std;
 
@@ -17,12 +19,114 @@ vector<String> v;
 
 WebServer server(80);
 
-LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 chars and 2 line display
+LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines); // set the LCD address to 0x27 for a 16 chars and 2 line display
 static unsigned long lastScrollTime = 0;
 
-void Display(String message, int row, bool first = true, bool last = false, int timeout = -1)
+#include <cmath>
+
+void DisplayBigNumber(int column, int num, bool colon = false)
 {
-  displayTimeout = timeout;
+  for (int i = 3; i >= 0; i--)
+  {
+    int digit = static_cast<int>(num / pow(10, i)) % 10;
+
+    lcd.setCursor(column, 0);
+    lcd.write(bigNumbers[digit][0]);
+    lcd.write(bigNumbers[digit][1]);
+    lcd.write(bigNumbers[digit][2]);
+    if (i == 2 && colon)
+    {
+      lcd.write(B10100101);
+    }
+    else
+    {
+      lcd.write(254);
+    }
+
+    lcd.setCursor(column, 1);
+    lcd.write(bigNumbers[digit][3]);
+    lcd.write(bigNumbers[digit][4]);
+    lcd.write(bigNumbers[digit][5]);
+    if (i == 2 && colon)
+    {
+      lcd.write(B10100101);
+    }
+    else
+    {
+      lcd.write(254);
+    }
+
+    column += 4;
+  }
+}
+
+void DisplayText()
+{
+  if (millis() - displayLastUpdate < displayLastUpdateInterval)
+  {
+    return;
+  }
+  displayLastUpdate = millis();
+  if (displayTimeout > 0)
+  {
+    displayTimeout -= displayLastUpdateInterval;
+    if (displayTimeout <= 0)
+    {
+      for (size_t i = 0; i < displayLines; i++)
+      {
+        displayLinesText[i] = "";
+      }
+
+      lcd.clear();
+    }
+  }
+  else
+  {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+      displayLinesText[0] = "--/--/--";
+    }
+    DisplayBigNumber(0, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
+
+    // char date[16];
+    // strftime(date, sizeof(date), "%Y/%m/%d", &timeinfo);
+    // displayLinesText[0] = date;
+    // char time[16];
+    // strftime(time, sizeof(time), "  %H:%M:%S", &timeinfo);
+    // displayLinesText[1] = time;
+  }
+  for (int i = 0; i < displayLines; i++)
+  {
+    lcd.setCursor(0, i);
+    if (displayLinesText[i].length() <= displayColumns)
+    {
+      lcd.print(displayLinesText[i]);
+    }
+    else
+    {
+      if (displayLinesPosition[i] + displayColumns > displayLinesText[i].length())
+      {
+        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
+        lcd.print(displayLinesText[i].substring(0, displayColumns - (displayLinesText[i].length() - displayLinesPosition[i])));
+      }
+      else
+      {
+        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + displayColumns));
+      }
+      lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + displayColumns));
+      displayLinesPosition[i]++;
+      if (displayLinesPosition[i] >= displayLinesText[i].length())
+      {
+        displayLinesPosition[i] = 0;
+      }
+    }
+  }
+}
+
+void Display(String message, int row, bool first = true, bool last = false)
+{
+  displayTimeout = displayTimeoutInterval;
   Serial.println(message);
   if (first)
   {
@@ -31,16 +135,17 @@ void Display(String message, int row, bool first = true, bool last = false, int 
   displayLinesText[row] += message;
   if (last)
   {
-    if (displayLinesText[row].length() > 16)
+    if (displayLinesText[row].length() > displayColumns)
     {
       displayLinesText[row] += "   ";
     }
-    while (displayLinesText[row].length() < 16)
+    while (displayLinesText[row].length() < displayColumns)
     {
       displayLinesText[row] += " ";
     }
   }
   displayLinesPosition[row] = 0;
+  DisplayText();
 }
 
 void InitializeLCD()
@@ -48,55 +153,19 @@ void InitializeLCD()
   lcd.init();
   lcd.clear();
   lcd.backlight();
+  pinMode(5, OUTPUT);
+  analogWrite(5, 255);
 
-  lcd.createChar(0, check);
-  lcd.createChar(1, cross);
-  lcd.createChar(2, retarrow);
-}
-
-void displayText()
-{
-  if (millis() - displayLastUpdate < displayLastUpdateInterval)
-  {
-    return;
-  }
-  displayLastUpdate = millis();
-  if(displayTimeout > 0)
-  {
-    displayTimeout -= displayLastUpdateInterval;
-    if(displayTimeout <= 0)
-    {
-      displayLinesText[0] = "";
-      displayLinesText[1] = "";
-      lcd.clear();
-    }
-  }
-  for (int i = 0; i < 2; i++)
-  {
-    lcd.setCursor(0, i);
-    if (displayLinesText[i].length() <= 16)
-    {
-      lcd.print(displayLinesText[i]);
-    }
-    else
-    {
-      if (displayLinesPosition[i] + 16 > displayLinesText[i].length())
-      {
-        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
-        lcd.print(displayLinesText[i].substring(0, 16 - (displayLinesText[i].length() - displayLinesPosition[i])));
-      }
-      else
-      {
-        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + 16));
-      }
-      lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + 16));
-      displayLinesPosition[i]++;
-      if (displayLinesPosition[i] >= displayLinesText[i].length())
-      {
-        displayLinesPosition[i] = 0;
-      }
-    }
-  }
+  lcd.createChar(0, LT);
+  lcd.createChar(1, UB);
+  lcd.createChar(2, RT);
+  lcd.createChar(3, LL);
+  lcd.createChar(4, LB);
+  lcd.createChar(5, LR);
+  lcd.createChar(6, MB);
+  // lcd.createChar(0, check);
+  // lcd.createChar(1, cross);
+  // lcd.createChar(2, retarrow);
 }
 
 void setup()
@@ -133,6 +202,50 @@ void setup()
   server.begin();
   Display("HTTP server started", 0, true, true);
   lcd.write(0);
+
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+  // OTA
+  // Port defaults to 3232
+  // ArduinoOTA.setPort(3232);
+  //
+  // Hostname defaults to esp32-[MAC]
+  ArduinoOTA.setHostname(HOSTNAME);
+  //
+  // No authentication by default
+  // ArduinoOTA.setPassword("admin");
+  //
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+  ArduinoOTA
+      .onStart([]()
+               {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Display("Start updating " + type, 0, true, true); })
+      .onEnd([]()
+             { Display("\nEnd", 0, true, true); })
+      .onProgress([](unsigned int progress, unsigned int total)
+                  {
+                    Display("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
+                    // esp_task_wdt_reset();
+                  })
+      .onError([](ota_error_t error)
+               {
+                Display("Error[" + String(error) + "]: ", 0, true, true);
+                if (error == OTA_AUTH_ERROR) Display("Auth Failed", 1, false, true);
+                else if (error == OTA_BEGIN_ERROR) Display("Begin Failed", 1, false, true);
+                else if (error == OTA_CONNECT_ERROR) Display("Connect Failed", 1, false, true);
+                else if (error == OTA_RECEIVE_ERROR) Display("Receive Failed", 1, false, true);
+                else if (error == OTA_END_ERROR) Display("End Failed", 1, false, true); });
+
+  ArduinoOTA.begin();
 }
 
 void loop()
@@ -141,14 +254,26 @@ void loop()
   // Serial.print("Hall: ");
   // Serial.println(hallValue);
   // delay(100);
-  displayText();
+  if (Serial.available())
+  {
+    char c = Serial.read();
+    // if a digit is received
+    if (isDigit(c))
+    {
+      int dimming = map(c, '0', '9', 0, 255);
+      analogWrite(5, dimming);
+    }
+  }
+
+  DisplayText();
   server.handleClient();
+  ArduinoOTA.handle();
 }
 
 void handle_OnRoot()
 {
-  Display("Starting handle request", 0, true, true, 5000);
-  ch1 = false;
+  Display("Starting handle request", 0, true, true);
+  ch1 = server.hasArg("ch1") && server.arg("ch1") == "1";
   ch2 = false;
   ch3 = true;
   ch4 = false;
@@ -156,7 +281,7 @@ void handle_OnRoot()
   ch6 = false;
   String body = GetHtml(ch1, ch2, ch3, ch4, ch5, ch6);
   server.send(200, "text/html", body);
-  Display("Finished.", 1, true, true, 5000);
+  Display("Finished.", 1, true, true);
 }
 
 // void handle_OnRoot()
