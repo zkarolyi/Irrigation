@@ -44,3 +44,5 @@ const char *HOSTNAME = "IrrigationController";
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;
 const int daylightOffset_sec = 3600;
+
+int relayPins[] = {12, 14, 27, 26, 25, 33, 32, 13};

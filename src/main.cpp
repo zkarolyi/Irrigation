@@ -168,12 +168,22 @@ void InitializeLCD()
   // lcd.createChar(2, retarrow);
 }
 
+void InicializeRelays()
+{
+  for (int i = 0; i < 8; i++)
+  {
+    pinMode(relayPins[i], OUTPUT);
+    digitalWrite(relayPins[i], HIGH);
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
   delay(100);
 
   InitializeLCD();
+  InicializeRelays();
 
   Display("Connecting to ", 0);
   Display(ssid, 0, false, true);
@@ -257,12 +267,8 @@ void loop()
   if (Serial.available())
   {
     char c = Serial.read();
-    // if a digit is received
-    if (isDigit(c))
-    {
-      int dimming = map(c, '0', '9', 0, 255);
-      analogWrite(5, dimming);
-    }
+    int cInt = c - '0';
+    digitalWrite(relayPins[cInt], !digitalRead(relayPins[cInt]));
   }
 
   DisplayText();
