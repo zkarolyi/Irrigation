@@ -1,0 +1,200 @@
+<!--// create a HTML page for the schedule
+// use site.css and script.js
+// use the same header and structure as in the index page
+// add fields for the schedule object
+
+// int startTime;
+// int duration[irrigationChannels];
+// IrrigationDaysToRun daysToRun;
+// int weight;
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Irrigation Schedule</title>
+    <link rel="stylesheet" href="site.css">
+    <script src="script.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <span>Irrigation Schedule</span>
+        </div>
+        <div class="content">
+            <form action="/Schedule" method="POST">
+                <input type="hidden" id="id" name="id" value="${id}">
+                <div class="schedule">
+                    <div>
+                        Start time:
+                    </div>
+                    <div>
+                        <select id="startTimeHour" class="number" name="startTimeHour">
+                            <option value="0"${sTH0}>0</option>
+                            <option value="1"${sTH1}>1</option>
+                            <option value="2"${sTH2}>2</option>
+                            <option value="3"${sTH3}>3</option>
+                            <option value="4"${sTH4}>4</option>
+                            <option value="5"${sTH5}>5</option>
+                            <option value="6"${sTH6}>6</option>
+                            <option value="7"${sTH7}>7</option>
+                            <option value="8"${sTH8}>8</option>
+                            <option value="9"${sTH9}>9</option>
+                            <option value="10"${sTH10}>10</option>
+                            <option value="11"${sTH11}>11</option>
+                            <option value="12"${sTH12}>12</option>
+                            <option value="13"${sTH13}>13</option>
+                            <option value="14"${sTH14}>14</option>
+                            <option value="15"${sTH15}>15</option>
+                            <option value="16"${sTH16}>16</option>
+                            <option value="17"${sTH17}>17</option>
+                            <option value="18"${sTH18}>18</option>
+                            <option value="19"${sTH19}>19</option>
+                            <option value="20"${sTH20}>20</option>
+                            <option value="21"${sTH21}>21</option>
+                            <option value="22"${sTH22}>22</option>
+                            <option value="23"${sTH23}>23</option>
+                        </select>
+                    </div>
+                    <div>
+                        :
+                    </div>
+                    <div>
+                        <select id="startTimeMinute" class="number" name="startTimeMinute">
+                            <option value="0"${sTM0}>00</option>
+                            <option value="15"${sTM15}>15</option>
+                            <option value="30"${sTM30}>30</option>
+                            <option value="45"${sTM45}>45</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="schedule">
+                    <div>
+                        Days to run:
+                    </div>
+                    <div>
+                        <select id="daysToRun" name="daysToRun">
+                            <option value="0"${dTR0}>Sunday</option>
+                            <option value="1"${dTR1}>Monday</option>
+                            <option value="2"${dTR2}>Tuesday</option>
+                            <option value="3"${dTR3}>Wednesday</option>
+                            <option value="4"${dTR4}>Thursday</option>
+                            <option value="5"${dTR5}>Friday</option>
+                            <option value="6"${dTR6}>Saturday</option>
+                            <option value="7"${dTR7}>All</option>
+                            <option value="8"${dTR8}>Odd</option>
+                            <option value="9"${dTR9}>Even</option>
+                            <option value="10"${dTR10}>Every3days</option>
+                            <option value="11"${dTR11}>Every4days</option>
+                            <option value="12"${dTR12}>Every5days</option>
+                            <option value="13"${dTR13}>Every6days</option>
+                            <option value="14"${dTR14}>Every7days</option>
+                            <option value="15"${dTR15}>Every8days</option>
+                            <option value="16"${dTR16}>Every9days</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="schedule">
+                    <div>
+                        Weight:
+                    </div>
+                    <div>
+                        <select id="Weight" class="number" name="weight">
+                            <option value="50"${W50}>50%</option>
+                            <option value="75"${W75}>75%</option>
+                            <option value="100"${W100}>100%</option>
+                            <option value="125"${W125}>125%</option>
+                            <option value="150"${W150}>150%</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chanels">
+                    <div>
+                        1.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration1" name="duration1" min="0" max="60" value="${duration1}">
+                    </div>
+                    <div>
+                        2.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration2" name="duration2" min="0" max="60" value="${duration2}">
+                    </div>
+                    <div>
+                        3.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration3" name="duration3" min="0" max="60" value="${duration3}">
+                    </div>
+                    <div>
+                        4.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration4" name="duration4" min="0" max="60" value="${duration4}">
+                    </div>
+                    <div>
+                        5.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration5" name="duration5" min="0" max="60" value="${duration5}">
+                    </div>
+                    <div>
+                        6.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration6" name="duration6" min="0" max="60" value="${duration6}">
+                    </div>
+                    <div>
+                        7.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration7" name="duration7" min="0" max="60" value="${duration7}">
+                    </div>
+                    <div>
+                        8.
+                    </div>
+                    <div>
+                        description
+                    </div>
+                    <div>
+                        <input type="number" id="duration8" name="duration8" min="0" max="60" value="${duration8}">
+                    </div>
+                </div>
+                <div class="buttonLine">
+                    <button type="cancel" onclick="window.location.href='/ScheduleList';">Cancel</button>
+                    <button type="submit">Submit</button>
+                </div>
+            </form>
+        </div>
+        <div class="footer">
+            Irrigation system 2022
+        </div>
+    </div>
+</body>
+
+</html>

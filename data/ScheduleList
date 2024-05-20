@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Irrigation Schedule List</title>
+    <link rel="stylesheet" href="site.css">
+    <script src="script.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <span>Irrigation Schedule List</span>
+        </div>
+        <div class="content">
+            <div class="scheduleList">
+                <div class="listItem">
+                    Time
+                </div>
+                <div class="listItem">
+                    Weight
+                </div>
+                <div class="listItem">
+
+                </div>
+                ${schedules}
+            </div>
+        </div>
+        <div class="buttonLine">
+            <button type="cancel" onclick="window.location.href='/';">Cancel</button>
+            <button type="submit" onclick="window.location.href='/Schedule';">Add</button>
+        </div>
+        <div class="footer">
+            Irrigation system 2022
+        </div>
+    </div>
+</body>
+
+</html>

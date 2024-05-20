@@ -1,8 +1,9 @@
 void handle_OnRoot();
+void handle_OnToggleSwitch();
 void handle_NotFound();
 String SendHTML(float temperature, float humidity, float pressure, float altitude);
 void GetFile(String fileName);
-String GetHtml(bool ch1, bool ch2, bool ch3, bool ch4, bool ch5, bool ch6);
+String GetHtml(bool ch[]);
 void InitFS();
 
 // uint8_t check[8] = {0b00000, 0b00001, 0b00011, 0b10110, 0b11100, 0b01000, 0b00000};
@@ -30,14 +31,15 @@ byte bigNumbers[10][6] PROGMEM = {
     {0, 6, 2, 4, 4, 5}    // 9
 };
 
-const int displayLines = 2;
-int displayColumns = 16;
+const int displayDimmPin = 5;
+const int displayLines = 4;
+const int displayColumns = 20;
 String displayLinesText[displayLines] = {};
 int displayLinesPosition[displayLines] = {};
 int displayLastUpdate = 0;
 int displayTimeout = -1;
 int displayLastUpdateInterval = 300;
-int displayTimeoutInterval = 5000;
+int displayTimeoutInterval = 15000;
 
 const char *HOSTNAME = "IrrigationController";
 
@@ -46,3 +48,5 @@ const long gmtOffset_sec = 3600;
 const int daylightOffset_sec = 3600;
 
 int relayPins[] = {12, 14, 27, 26, 25, 33, 32, 13};
+
+const char *schedulesFile = "/schedules.json";

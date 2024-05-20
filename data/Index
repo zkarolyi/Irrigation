@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>LED Control</title>
     <link rel="stylesheet" href="site.css">
+    <script src="script.js"></script>
 </head>
 
 <body>
@@ -20,8 +21,8 @@
                 <div>
                     &nbsp;
                 </div>
-                <div>
-                    <div class="button button-on">
+                <div onclick="callToggleSwitch(1)">
+                    <div class="button button-${ch1_state}">
                         &nbsp;
                     </div>
                 </div>
@@ -31,8 +32,8 @@
                 <div>
                     a
                 </div>
-                <div>
-                    <div class="button button-off">
+                <div onclick="callToggleSwitch(2)">
+                    <div class="button button-${ch2_state}">
                         &nbsp;
                     </div>
                 </div>
@@ -42,8 +43,8 @@
                 <div>
                     a
                 </div>
-                <div>
-                    <div class="button button-off">
+                <div onclick="callToggleSwitch(3)">
+                    <div class="button button-${ch3_state}">
                         &nbsp;
                     </div>
                 </div>
@@ -53,8 +54,8 @@
                 <div>
                     a
                 </div>
-                <div>
-                    <div class="button button-off">
+                <div onclick="callToggleSwitch(4)">
+                    <div class="button button-${ch4_state}">
                         &nbsp;
                     </div>
                 </div>
@@ -64,8 +65,8 @@
                 <div>
                     a
                 </div>
-                <div>
-                    <div class="button button-off">
+                <div onclick="callToggleSwitch(5)">
+                    <div class="button button-${ch5_state}">
                         &nbsp;
                     </div>
                 </div>
@@ -75,8 +76,30 @@
                 <div>
                     a
                 </div>
+                <div onclick="callToggleSwitch(6)">
+                    <div class="button button-${ch6_state}">
+                        &nbsp;
+                    </div>
+                </div>
                 <div>
-                    <div class="button button-off">
+                    7.
+                </div>
+                <div>
+                    a
+                </div>
+                <div onclick="callToggleSwitch(7)">
+                    <div class="button button-${ch7_state}">
+                        &nbsp;
+                    </div>
+                </div>
+                <div>
+                    8.
+                </div>
+                <div>
+                    a
+                </div>
+                <div onclick="callToggleSwitch(8)">
+                    <div class="button button-${ch8_state}">
                         &nbsp;
                     </div>
                 </div>
