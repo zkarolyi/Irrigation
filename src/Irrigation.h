@@ -12,13 +12,6 @@ const int irrigationChannels = 8;
 // Enum to represent the days to run on
 enum class IrrigationDaysToRun
 {
-    Sunday,
-    Monday,
-    Tuesday,
-    Wednesday,
-    Thursday,
-    Friday,
-    Saturday,
     All,
     Odd,
     Even,
@@ -26,10 +19,24 @@ enum class IrrigationDaysToRun
     Every4days,
     Every5days,
     Every6days,
-    Every7days,
-    Every8days,
-    Every9days
+    Every7days
 };
+
+String IrrigationDaysToRunToString(IrrigationDaysToRun day)
+{
+    switch (day)
+    {
+        case IrrigationDaysToRun::All: return "All";
+        case IrrigationDaysToRun::Odd: return "Odd";
+        case IrrigationDaysToRun::Even: return "Even";
+        case IrrigationDaysToRun::Every3days: return "Every3days";
+        case IrrigationDaysToRun::Every4days: return "Every4days";
+        case IrrigationDaysToRun::Every5days: return "Every5days";
+        case IrrigationDaysToRun::Every6days: return "Every6days";
+        case IrrigationDaysToRun::Every7days: return "Every7days";
+        default: return "Unknown";
+    }
+}
 
 // Class to represent an irrigation schedule
 class IrrigationSchedule
@@ -180,13 +187,15 @@ private:
 };
 
 String convertToJson(const IrrigationSchedules &schedules) {
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     JsonArray schedulesArray = doc.createNestedArray("schedules");
     for (int i = 0; i < schedules.getNumberOfSchedules(); i++) {
         IrrigationSchedule schedule = schedules.getSchedule(i);
         JsonObject scheduleObject = schedulesArray.createNestedObject();
         scheduleObject["startTime"] = schedule.getStartTime();
+        scheduleObject["startTimeString"] = (schedule.getStartTimeHours() < 10 ? "0" : "") + String(schedule.getStartTimeHours()) + ":" + (schedule.getStartTimeMinutes() < 10 ? "0" : "") + String(schedule.getStartTimeMinutes());
         scheduleObject["daysToRun"] = static_cast<int>(schedule.getDaysToRun());
+        scheduleObject["daysToRunString"] = IrrigationDaysToRunToString(schedule.getDaysToRun());
         scheduleObject["weight"] = schedule.getWeight();
         JsonArray channelDurationsArray = scheduleObject.createNestedArray("channelDurations");
         for (int j = 0; j < irrigationChannels; j++) {
@@ -200,7 +209,7 @@ String convertToJson(const IrrigationSchedules &schedules) {
 }
 
 bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules) {
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, jsonString);
     if (error) {
         Serial.print(F("deserializeJson() failed: "));

@@ -260,7 +260,7 @@ void handle_OnGetSchedule()
       body.replace("${sTM" + String(i) + "}", "");
     }
     IrrigationDaysToRun dtr = IrrigationDaysToRun::All;
-    for (int i = (int)IrrigationDaysToRun::Sunday; i <= (int)IrrigationDaysToRun::Every9days; i++)
+    for (int i = (int)IrrigationDaysToRun::All; i <= (int)IrrigationDaysToRun::Every7days; i++)
     {
       body.replace("${dTR" + String(i) + "}", dtr == (IrrigationDaysToRun)i ? " selected" : "");
     }
@@ -291,7 +291,7 @@ void handle_OnGetSchedule()
     }
     int dtr = (int)sch.getDaysToRun();
     Display("R:" + String(dtr), 2, true, false);
-    for (int i = (int)IrrigationDaysToRun::Sunday; i <= (int)IrrigationDaysToRun::Every9days; i++)
+    for (int i = (int)IrrigationDaysToRun::All; i <= (int)IrrigationDaysToRun::Every7days; i++)
     {
       body.replace("${dTR" + String(i) + "}", dtr == i ? " selected" : "");
     }
