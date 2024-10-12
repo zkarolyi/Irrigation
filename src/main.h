@@ -47,6 +47,9 @@ const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;
 const int daylightOffset_sec = 3600;
 
-int relayPins[] = {12, 14, 27, 26, 25, 33, 32, 13};
+//int relayPins[] = {12, 14, 27, 26, 25, 33, 32, 13};
+bool irrigationScheduleEnabled = true;
+int irrigationCheckInterval = 10000;
+int irrigationLastCheck = 0;
 
 const char *schedulesFile = "/schedules.json";

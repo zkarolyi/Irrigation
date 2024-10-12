@@ -3,7 +3,7 @@
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>LED Control</title>
+    <title>Irrigation Control</title>
     <link rel="stylesheet" href="site.css">
     <script src="script.js"></script>
 </head>
@@ -104,6 +104,10 @@
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="buttonLine">
+            <button type="cancel" onclick="callToggleSwitch(0);">Schedule On</button>
+            <button type="cancel" onclick="window.location.href='/ScheduleList';">Schedules</button>
         </div>
         <div class="footer">
             Irrigation system 2022

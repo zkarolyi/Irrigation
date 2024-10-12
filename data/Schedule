@@ -1,14 +1,3 @@
-<!--// create a HTML page for the schedule
-// use site.css and script.js
-// use the same header and structure as in the index page
-// add fields for the schedule object
-
-// int startTime;
-// int duration[irrigationChannels];
-// IrrigationDaysToRun daysToRun;
-// int weight;
--->
-
 <!DOCTYPE html>
 <html>
 

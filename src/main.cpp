@@ -7,11 +7,10 @@
 #include <Arduino.h>
 #include "Irrigation.h"
 #include <ArduinoJson.h>
-
+#include <cmath>
 using namespace std;
 
 float temperature, humidity, pressure, altitude;
-bool ch[irrigationChannels] = {false, false, false, false, false, false, false, false};
 
 /*Put your SSID & Password*/
 const char *ssid = "Csepp2";       // Enter SSID here
@@ -20,13 +19,17 @@ const char *password = "Karolyi1"; // Enter Password here
 vector<String> v;
 
 WebServer server(80);
-IrrigationSchedules schedules;
+IrrigationSchedules schedules({12, 14, 27, 26, 25, 33, 32, 13});
 
 LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines); // set the LCD address to 0x27 (0x3F) for a 16 chars and 2 line display
 static unsigned long lastScrollTime = 0;
 
-#include <cmath>
-
+// ##       ####      ####      ###       ###  #########      ###  ####  ##
+// ##  ####  #####  #####  ########  ####  ##  ########  ####  ###  ##  ###
+// ##  ####  #####  ######      ###       ###  ########        ####    ####
+// ##  ####  #####  ###########  ##  ########  ########  ####  #####  #####
+// ##       ####      ####      ###  ########        ##  ####  #####  #####
+// Display
 void DisplayBigNumber(int row, int column, int num, bool colon = false)
 {
   for (int i = 3; i >= 0; i--)
@@ -152,7 +155,12 @@ void Display(String message, int row, bool first = true, bool last = false)
   displayLinesPosition[row] = 0;
   DisplayText();
 }
-
+// ###      ###  ####  ###      ###        ##
+// #####  #####    ##  #####  ########  #####
+// #####  #####  #  #  #####  ########  #####
+// #####  #####  ##    #####  ########  #####
+// ###      ###  ####  ###      ######  #####
+// Inits
 void InitializeLCD()
 {
   lcd.init();
@@ -175,10 +183,10 @@ void InitializeLCD()
 
 void InicializeRelays()
 {
-  for (int i = 0; i < irrigationChannels; i++)
+  for (int i = 0; i < irrigationChannelNumber; i++)
   {
-    pinMode(relayPins[i], OUTPUT);
-    digitalWrite(relayPins[i], HIGH);
+    pinMode(schedules.getPin(i), OUTPUT);
+    digitalWrite(schedules.getPin(i), HIGH);
   }
 }
 
@@ -198,6 +206,12 @@ void InitializeSchedules()
   convertFromJson(json, schedules);
 }
 
+// ##        ###      ###  ########        ##
+// ##  ###########  #####  ########  ########
+// ##      #######  #####  ########      ####
+// ##  ###########  #####  ########  ########
+// ##  #########      ###        ##        ##
+// File
 void SaveSchedules(IrrigationSchedules &schedules)
 {
   File file = SPIFFS.open(schedulesFile, "w");
@@ -216,6 +230,39 @@ void SaveSchedules(IrrigationSchedules &schedules)
   file.close();
 }
 
+void InitFS()
+{
+  if (!SPIFFS.begin(true))
+  {
+    Display("An Error has occurred while mounting SPIFFS", 0, true, true);
+    return;
+  }
+}
+
+void GetFile(String fileName)
+{
+  File file = SPIFFS.open(fileName);
+  if (!file)
+  {
+    Display("Failed to open file for reading", 0, true, true);
+    return;
+  }
+
+  // vector<String> v;
+  while (file.available())
+  {
+    v.push_back(file.readStringUntil('\n'));
+  }
+
+  file.close();
+}
+
+// ##  ####  ###      ###  ####  ##       ###  ########        ##       ####      ###
+// ##  ####  ##  ####  ##    ##  ##  ####  ##  ########  ########  ####  ##  ########
+// ##        ##        ##  #  #  ##  ####  ##  ########      ####       ####      ###
+// ##  ####  ##  ####  ##  ##    ##  ####  ##  ########  ########  ##  ##########  ##
+// ##  ####  ##  ####  ##  ####  ##       ###        ##        ##  ####  ###      ###
+// Handlers
 void handle_OnSetDimming()
 {
   Display("Handle set dimming", 0, true, true);
@@ -269,7 +316,7 @@ void handle_OnGetSchedule()
     {
       body.replace("${W" + String(i) + "}", weight == i ? " selected" : "");
     }
-    for (int i = 0; i < irrigationChannels; i++)
+    for (int i = 0; i < irrigationChannelNumber; i++)
     {
       body.replace("${duration" + String(i + 1) + "}", "0");
     }
@@ -300,7 +347,7 @@ void handle_OnGetSchedule()
     {
       body.replace("${W" + String(i) + "}", weight == i ? " selected" : "");
     }
-    for (int i = 0; i < irrigationChannels; i++)
+    for (int i = 0; i < irrigationChannelNumber; i++)
     {
       int cd = sch.getChannelDuration(i);
       body.replace("${duration" + String(i + 1) + "}", String(cd));
@@ -323,7 +370,7 @@ void handle_OnSetSchedule()
     return;
   }
 
-  for (int i = 0; i < irrigationChannels; i++)
+  for (int i = 0; i < irrigationChannelNumber; i++)
   {
     if (!server.hasArg("duration" + String(i + 1)) || server.arg("duration" + String(i + 1)).length() == 0 || server.arg("duration" + String(i + 1)).toInt() < 0 || server.arg("duration" + String(i + 1)).toInt() > 60)
     {
@@ -342,7 +389,7 @@ void handle_OnSetSchedule()
   }
 
   currSchedule.setStartTime(getStartTime / 60, getStartTime % 60);
-  for (int i = 0; i < irrigationChannels; i++)
+  for (int i = 0; i < irrigationChannelNumber; i++)
   {
     currSchedule.addChannelDuration(i, server.arg("duration" + String(i + 1)).toInt());
   }
@@ -406,6 +453,152 @@ void handle_OnGetSettings()
   Display("Finished.", 1, true, true);
 }
 
+void handle_OnRoot()
+{
+  Display("Starting handle request", 0, true, true);
+  bool ch[irrigationChannelNumber];
+  for (int i = 0; i < irrigationChannelNumber; i++)
+  {
+    ch[i] = digitalRead(schedules.getPin(i));
+  }
+  String body = GetHtml(ch);
+  server.send(200, "text/html", body);
+  Display("Finished.", 1, true, true);
+}
+
+void handle_OnToggleSwitch()
+{
+  Display("Handle toggle", 0, true, true);
+  int ch = server.hasArg("ch") ? server.arg("ch").toInt() - 1 : -1;
+  if (ch < -1 || ch > 7)
+  {
+    Display("Invalid channel", 1, true, true);
+    server.send(400, "application/json", "{\"error\": \"Invalid channel\"}");
+    return;
+  }
+
+  if(ch == -1)
+  {
+    irrigationScheduleEnabled = true;
+    server.send(200, "application/json", "{\"status\": \"OK\", \"mode\": \"scheduled\", \"enabled\": " + String(irrigationScheduleEnabled) + "}");
+    Display("Finished on: all", 1, true, true);
+    return;
+  }
+
+  irrigationScheduleEnabled = false;
+  int pin = schedules.getPin(ch);
+
+  if (digitalRead(pin) == HIGH)
+  {
+    for (int i = 0; i < irrigationChannelNumber; i++)
+    {
+      digitalWrite(schedules.getPin(i), HIGH);
+    }
+    digitalWrite(pin, LOW);
+  }
+  else
+  {
+    digitalWrite(pin, HIGH);
+  }
+  server.send(200, "application/json",
+              "{\"status\": \"OK\", \"channel\": " + String(ch + 1) + ", \"pin\": " + String(pin) + "}");
+  Display("Finished on: " + String(ch), 1, true, true);
+}
+
+void handle_NotFound()
+{
+  Display("Page not found", 0, true, true);
+  server.send(404, "text/plain", "Page not found");
+}
+
+// ##      ##       ###       ####      ###      ####      ###        ###      ###      ###  ####  ##
+// ####  ####  ####  ##  ####  #####  ####  ########  ####  #####  ########  ####  ####  ##    ##  ##
+// ####  ####       ###       ######  ####   #   ###        #####  ########  ####  ####  ##  #  #  ##
+// ####  ####  ##  ####  ##  #######  ####  # ##  ##  ####  #####  ########  ####  ####  ##  ##    ##
+// ##      ##  ####  ##  ####  ###      ###      ###  ####  #####  ######      ###      ###  ####  ##
+// Irrigation
+void ManageIrrigation()
+{
+  // return if interval not reached
+  if (!irrigationScheduleEnabled || millis() - irrigationLastCheck < irrigationCheckInterval)
+  {
+    return;
+  }
+  irrigationLastCheck = millis();
+
+  time_t now;
+  struct tm timeinfo;
+  time(&now);
+  localtime_r(&now, &timeinfo);
+  int currentTime = (timeinfo.tm_hour * 3600) + (timeinfo.tm_min * 60) + timeinfo.tm_sec;
+
+  for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
+  {
+    IrrigationSchedule schedule = schedules.getSchedule(i);
+    int startTime = schedule.getStartTime() * 60;
+    for (int j = 0; j < schedule.getNumberOfChannels(); j++)
+    {
+      int endTime = startTime + 60 * schedule.getChannelDuration(j);
+      if (currentTime >= startTime && currentTime < endTime)
+      {
+        if (digitalRead(schedules.getPin(j)) == HIGH)
+        {
+          digitalWrite(schedules.getPin(j), LOW); // Activate the valve
+          Display("Channel " + String(j + 1) + " started", 2, true, true);
+          Serial.printf("Channel %d started\n", j + 1);
+        }
+      }
+      else
+      {
+        if (digitalRead(schedules.getPin(j)) == LOW)
+        {
+          digitalWrite(schedules.getPin(j), HIGH); // Deactivate the valve
+          Display("Channel " + String(j + 1) + " stopped", 2, true, true);
+          Serial.printf("Channel %d stopped\n", j + 1);
+        }
+      }
+      startTime = endTime;
+    }
+  }
+}
+
+String GetHtml(bool ch[])
+{
+  String ptr;
+  for (String s : v)
+  {
+    ptr += s;
+  }
+
+  for (int i = 0; i < irrigationChannelNumber; i++)
+  {
+    ptr.replace("${ch" + String(i + 1) + "_state}", ch[i] ? "on" : "off");
+  }
+
+  return ptr;
+}
+
+String SendHTML(float temperature, float humidity, float pressure, float altitude)
+{
+  String ptr;
+  for (String s : v)
+  {
+    ptr += s;
+  }
+
+  return ptr;
+}
+
+// ###########################################################################
+// ###########################################################################
+// ##########      ###        ##        ##  ####  ##       ###################
+// #########  ########  ###########  #####  ####  ##  ####  ##################
+// ##########      ###        #####  #####  ####  ##  ####  ##################
+// ###############  ##  ###########  #####  ####  ##       ###################
+// ###############  ##  ###########  #####  ####  ##  ########################
+// ##########      ###        #####  ######      ###  ########################
+// ###########################################################################
+// ###########################################################################
 void setup()
 {
   Serial.begin(115200);
@@ -493,7 +686,16 @@ void setup()
 
   ArduinoOTA.begin();
 }
-
+// ###########################################################################
+// ###########################################################################
+// #########  #########      ####     ####       #############################
+// #########  ########  ####  ##  ####  ##  ####  ############################
+// #########  ########  ####  ##  ####  ##  ####  ############################
+// #########  ########  ####  ##  ####  ##       #############################
+// #########  ########  ####  ##  ####  ##  ##################################
+// #########        ###      ####      ###  ##################################
+// ###########################################################################
+// ###########################################################################
 void loop()
 {
   if (Serial.available())
@@ -504,105 +706,8 @@ void loop()
     analogWrite(5, cInt * 50);
   }
 
+  ManageIrrigation();
   DisplayText();
   server.handleClient();
   ArduinoOTA.handle();
-}
-
-void handle_OnRoot()
-{
-  Display("Starting handle request", 0, true, true);
-  for (int i = 0; i < irrigationChannels; i++)
-  {
-    ch[i] = digitalRead(relayPins[i]);
-  }
-  String body = GetHtml(ch);
-  server.send(200, "text/html", body);
-  Display("Finished.", 1, true, true);
-}
-
-void handle_OnToggleSwitch()
-{
-  Display("Handle toggle", 0, true, true);
-  int ch = server.hasArg("ch") ? server.arg("ch").toInt() - 1 : -1;
-  if (ch < 0 || ch > 7)
-  {
-    Display("Invalid channel", 1, true, true);
-    server.send(400, "text/html", "Invalid channel");
-    return;
-  }
-  if (digitalRead(relayPins[ch]) == HIGH)
-  {
-    for (int i = 0; i < irrigationChannels; i++)
-    {
-      digitalWrite(relayPins[i], HIGH);
-    }
-    digitalWrite(relayPins[ch], LOW);
-  }
-  else
-  {
-    digitalWrite(relayPins[ch], HIGH);
-  }
-  server.send(200, "text/html", "OK (" + String(ch) + ")");
-  Display("Finished on: " + String(ch), 1, true, true);
-}
-
-void handle_NotFound()
-{
-  Display("Page not found", 0, true, true);
-  server.send(404, "text/plain", "Page not found");
-}
-
-String GetHtml(bool ch[])
-{
-  String ptr;
-  for (String s : v)
-  {
-    ptr += s;
-  }
-
-  for (int i = 0; i < irrigationChannels; i++)
-  {
-    ptr.replace("${ch" + String(i + 1) + "_state}", ch[i] ? "on" : "off");
-  }
-
-  return ptr;
-}
-
-String SendHTML(float temperature, float humidity, float pressure, float altitude)
-{
-  String ptr;
-  for (String s : v)
-  {
-    ptr += s;
-  }
-
-  return ptr;
-}
-
-void InitFS()
-{
-  if (!SPIFFS.begin(true))
-  {
-    Display("An Error has occurred while mounting SPIFFS", 0, true, true);
-    return;
-  }
-}
-
-void GetFile(String fileName)
-{
-  File file = SPIFFS.open(fileName);
-  if (!file)
-  {
-    Display("Failed to open file for reading", 0, true, true);
-    return;
-  }
-
-  // vector<String> v;
-  while (file.available())
-  {
-    v.push_back(file.readStringUntil('\n'));
-  }
-
-  file.close();
 }
