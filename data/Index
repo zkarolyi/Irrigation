@@ -19,7 +19,7 @@
                     1.
                 </div>
                 <div>
-                    &nbsp;
+                    Hátsó kert elöl
                 </div>
                 <div onclick="callToggleSwitch(1)">
                     <div class="button button-${ch1_state}">
@@ -30,7 +30,7 @@
                     2.
                 </div>
                 <div>
-                    a
+                    Hátsó kert hátul
                 </div>
                 <div onclick="callToggleSwitch(2)">
                     <div class="button button-${ch2_state}">
@@ -41,7 +41,7 @@
                     3.
                 </div>
                 <div>
-                    a
+                    Előkert
                 </div>
                 <div onclick="callToggleSwitch(3)">
                     <div class="button button-${ch3_state}">
@@ -52,7 +52,7 @@
                     4.
                 </div>
                 <div>
-                    a
+                    Csepegtető
                 </div>
                 <div onclick="callToggleSwitch(4)">
                     <div class="button button-${ch4_state}">
@@ -63,7 +63,7 @@
                     5.
                 </div>
                 <div>
-                    a
+                    Oldalsó kert
                 </div>
                 <div onclick="callToggleSwitch(5)">
                     <div class="button button-${ch5_state}">
@@ -74,7 +74,7 @@
                     6.
                 </div>
                 <div>
-                    a
+                    Nincs
                 </div>
                 <div onclick="callToggleSwitch(6)">
                     <div class="button button-${ch6_state}">
@@ -85,7 +85,7 @@
                     7.
                 </div>
                 <div>
-                    a
+                    Nincs
                 </div>
                 <div onclick="callToggleSwitch(7)">
                     <div class="button button-${ch7_state}">
@@ -96,7 +96,7 @@
                     8.
                 </div>
                 <div>
-                    a
+                    Nincs
                 </div>
                 <div onclick="callToggleSwitch(8)">
                     <div class="button button-${ch8_state}">

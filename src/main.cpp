@@ -2,12 +2,14 @@
 #include <WebServer.h>
 #include <main.h>
 #include "SPIFFS.h"
-#include <LiquidCrystal_I2C.h>
 #include <ArduinoOTA.h>
 #include <Arduino.h>
 #include "Irrigation.h"
 #include <ArduinoJson.h>
 #include <cmath>
+#include <ESP32RotaryEncoder.h> 
+// #include "menu.h"
+#include "display.h"
 using namespace std;
 
 float temperature, humidity, pressure, altitude;
@@ -19,167 +21,254 @@ const char *password = "Karolyi1"; // Enter Password here
 vector<String> v;
 
 WebServer server(80);
-IrrigationSchedules schedules({12, 14, 27, 26, 25, 33, 32, 13});
+IrrigationSchedules schedules({12, 14, 27, 26, 25, 23, 32, 13});
+Display screen({12, 14, 27, 26, 25, 23, 32, 13});
+RotaryEncoder rotaryEncoder( rotaryEncoderPin1, rotaryEncoderPin2, rotaryEncoderButton );
 
-LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines); // set the LCD address to 0x27 (0x3F) for a 16 chars and 2 line display
-static unsigned long lastScrollTime = 0;
+// LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines); // set the LCD address to 0x27 (0x3F) for a 16 chars and 2 line display
+// static unsigned long lastScrollTime = 0;
 
+// ##############################################################
+// ##       ####      ###        ###      ###       ####      ###
+// ##  ####  ##  ####  #####  #####  ####  ##  ####  #####  #####
+// ##       ###  ####  #####  #####        ##       ######  #####
+// ##  ##  ####  ####  #####  #####  ####  ##  ##  #######  #####
+// ##  ####  ###      ######  #####  ####  ##  ####  ###      ###
+// ##############################################################
+
+// Rotary
+void knobCallback( long value )
+{
+    // This gets executed every time the knob is turned
+    rotaryEncoderPosition = value;
+    Serial.printf( "Value: %i\n", value );
+}
+
+void buttonCallback( unsigned long duration )
+{
+    // This gets executed every time the pushbutton is pressed
+    rotaryEncoderButtonDuration = duration;
+    Serial.printf( "boop! button was down for %u ms\n", duration );
+}
+
+// ########################################################################
 // ##       ####      ####      ###       ###  #########      ###  ####  ##
 // ##  ####  #####  #####  ########  ####  ##  ########  ####  ###  ##  ###
 // ##  ####  #####  ######      ###       ###  ########        ####    ####
 // ##  ####  #####  ###########  ##  ########  ########  ####  #####  #####
 // ##       ####      ####      ###  ########        ##  ####  #####  #####
+// ########################################################################
+
 // Display
-void DisplayBigNumber(int row, int column, int num, bool colon = false)
-{
-  for (int i = 3; i >= 0; i--)
-  {
-    int digit = static_cast<int>(num / pow(10, i)) % 10;
+// void DisplayBigNumber(int row, int column, int num, bool colon = false)
+// {
+//   for (int i = 3; i >= 0; i--)
+//   {
+//     int digit = static_cast<int>(num / pow(10, i)) % 10;
 
-    lcd.setCursor(column, row);
-    lcd.write(bigNumbers[digit][0]);
-    lcd.write(bigNumbers[digit][1]);
-    lcd.write(bigNumbers[digit][2]);
-    if (i == 2 && colon)
-    {
-      lcd.write(B10100101);
-    }
-    else
-    {
-      lcd.write(254);
-    }
+//     lcd.setCursor(column, row);
+//     lcd.write(bigNumbers[digit][0]);
+//     lcd.write(bigNumbers[digit][1]);
+//     lcd.write(bigNumbers[digit][2]);
+//     if (i == 2 && colon)
+//     {
+//       lcd.write(B10100101);
+//     }
+//     else
+//     {
+//       lcd.write(254);
+//     }
 
-    lcd.setCursor(column, row + 1);
-    lcd.write(bigNumbers[digit][3]);
-    lcd.write(bigNumbers[digit][4]);
-    lcd.write(bigNumbers[digit][5]);
-    if (i == 2 && colon)
-    {
-      lcd.write(B10100101);
-    }
-    else
-    {
-      lcd.write(254);
-    }
+//     lcd.setCursor(column, row + 1);
+//     lcd.write(bigNumbers[digit][3]);
+//     lcd.write(bigNumbers[digit][4]);
+//     lcd.write(bigNumbers[digit][5]);
+//     if (i == 2 && colon)
+//     {
+//       lcd.write(B10100101);
+//     }
+//     else
+//     {
+//       lcd.write(254);
+//     }
 
-    column += 4;
-  }
-}
+//     column += 4;
+//   }
+// }
 
-void DisplayText()
-{
-  if (millis() - displayLastUpdate < displayLastUpdateInterval)
-  {
-    return;
-  }
+// void DisplayStatus(int animation)
+// {
+//   char animationChar;
+//   switch (animation % 4)
+//   {
+//   case 0:
+//     animationChar = '|';
+//     break;
+//   case 1:
+//     animationChar = '/';
+//     break;
+//   case 2:
+//     animationChar = '-'; // B10100100;
+//     break;
+//   case 3:
+//     animationChar = B00000111;
+//     break;
+//   }
+//   lcd.setCursor(0, displayLines - 1);
+//   for (int i = 0; i < irrigationChannelNumber; i++)
+//   {
+//     lcd.write((digitalRead(schedules.getPin(i)) == HIGH ? '_' : animationChar));
+//   }
+//   lcd.print( LongToString(rotaryEncoderPosition, 2) );
+//   lcd.print( "/" );
+//   lcd.print( LongToString(rotaryEncoderButtonDuration, 5) );
 
-  displayLastUpdate = millis();
+//   lcd.setCursor(displayColumns - 1, 0);
+//   lcd.write(displayNetworkActivity > 0 ? B11001110 : ' ');
 
-  if (displayTimeout > 0)
-  {
-    displayTimeout -= displayLastUpdateInterval;
-    // Timeout, clear the display
-    if (displayTimeout > 0)
-    {
-      for (int i = 0; i < displayLines; i++)
-      {
-        lcd.setCursor(0, i);
-        if (displayLinesText[i].length() <= displayColumns)
-        {
-          lcd.print(displayLinesText[i]);
-          for (int j = displayLinesText[i].length(); j < displayColumns; j++)
-          {
-            lcd.print(" ");
-          }
-        }
-        else
-        {
-          if (displayLinesPosition[i] + displayColumns > displayLinesText[i].length())
-          {
-            lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
-            lcd.print(displayLinesText[i].substring(0, displayColumns - (displayLinesText[i].length() - displayLinesPosition[i])));
-          }
-          else
-          {
-            lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + displayColumns));
-          }
-          displayLinesPosition[i]++;
-          if (displayLinesPosition[i] >= displayLinesText[i].length())
-          {
-            displayLinesPosition[i] = 0;
-          }
-        }
-      }
-    }
-    else
-    {
-      for (size_t i = 0; i < displayLines; i++)
-      {
-        displayLinesText[i] = "";
-      }
+//   lcd.setCursor(displayColumns - 1, 1);
+//   lcd.write(irrigationScheduleEnabled ? B11001001 : 'M');
 
-      lcd.clear();
-    }
-  }
-  else
-  {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo))
-    {
-      displayLinesText[0] = "--/--/--";
-    }
-    DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
-  }
-}
+//   lcd.setCursor(displayColumns - 1, 2);
+//   lcd.write(displayOutChange > 0 ? 'o' : ' ');
 
-void Display(String message, int row, bool first = true, bool last = false)
-{
-  displayTimeout = displayTimeoutInterval;
-  Serial.println(message);
-  if (first)
-  {
-    displayLinesText[row] = "";
-  }
-  displayLinesText[row] += message;
-  if (last)
-  {
-    if (displayLinesText[row].length() > displayColumns)
-    {
-      displayLinesText[row] += "   ";
-    }
-    while (displayLinesText[row].length() < displayColumns)
-    {
-      displayLinesText[row] += " ";
-    }
-  }
-  displayLinesPosition[row] = 0;
-  DisplayText();
-}
+//   lcd.setCursor(displayColumns - 1, 3);
+//   lcd.write(B11011110); // Rain sensor
+// }
+
+// void HandleTimeouts(int elapsed)
+// {
+//   displayNetworkActivity -= elapsed;
+//   if (displayNetworkActivity < 0)
+//   {
+//     displayNetworkActivity = 0;
+//   }
+//   displayOutChange -= elapsed;
+//   if (displayOutChange < 0)
+//   {
+//     displayOutChange = 0;
+//   }
+// }
+
+// void DisplayText()
+// {
+//   if (millis() - displayLastUpdate < displayLastUpdateInterval)
+//   {
+//     return;
+//   }
+//   displayLastUpdate = millis();
+//   HandleTimeouts(displayLastUpdateInterval);
+//   struct tm timeinfo;
+
+//   if (displayTimeout > 0)
+//   {
+//     displayTimeout -= displayLastUpdateInterval;
+//     if (displayTimeout > 0)
+//     {
+//       for (int i = 0; i < displayLines - 1; i++)
+//       {
+//         lcd.setCursor(0, i);
+//         if (displayLinesText[i].length() <= displayColumns - 1)
+//         {
+//           lcd.print(displayLinesText[i]);
+//           for (int j = displayLinesText[i].length(); j < displayColumns - 1; j++)
+//           {
+//             lcd.print(" ");
+//           }
+//         }
+//         else
+//         {
+//           if (displayLinesPosition[i] + displayColumns - 1 > displayLinesText[i].length())
+//           {
+//             lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
+//             lcd.print(displayLinesText[i].substring(0, displayColumns - 1 - (displayLinesText[i].length() - displayLinesPosition[i])));
+//           }
+//           else
+//           {
+//             lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + displayColumns - 1));
+//           }
+//           displayLinesPosition[i]++;
+//           if (displayLinesPosition[i] >= displayLinesText[i].length())
+//           {
+//             displayLinesPosition[i] = 0;
+//           }
+//         }
+//       }
+//     }
+//     else
+//     {
+//       for (size_t i = 0; i < displayLines - 1; i++)
+//       {
+//         displayLinesText[i] = "";
+//       }
+
+//       lcd.clear();
+//     }
+//   }
+//   else
+//   {
+//     if (!getLocalTime(&timeinfo))
+//     {
+//       displayLinesText[0] = "--/--/--";
+//     }
+//     DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
+//   }
+//   DisplayStatus(timeinfo.tm_sec);
+// }
+
+// void Display(String message, int row, bool first = true, bool last = false)
+// {
+//   displayTimeout = displayTimeoutInterval;
+//   Serial.println(message);
+//   if (first)
+//   {
+//     displayLinesText[row] = "";
+//   }
+//   displayLinesText[row] += message;
+//   if (last)
+//   {
+//     if (displayLinesText[row].length() > displayColumns - 1)
+//     {
+//       displayLinesText[row] += "   ";
+//     }
+//     while (displayLinesText[row].length() < displayColumns - 1)
+//     {
+//       displayLinesText[row] += " ";
+//     }
+//   }
+//   displayLinesPosition[row] = 0;
+//   DisplayText();
+// }
+
+// ##########################################
 // ###      ###  ####  ###      ###        ##
 // #####  #####    ##  #####  ########  #####
 // #####  #####  #  #  #####  ########  #####
 // #####  #####  ##    #####  ########  #####
 // ###      ###  ####  ###      ######  #####
-// Inits
-void InitializeLCD()
-{
-  lcd.init();
-  lcd.clear();
-  lcd.backlight();
-  pinMode(displayDimmPin, OUTPUT);
-  analogWrite(displayDimmPin, 255);
+// ##########################################
 
-  lcd.createChar(0, LT);
-  lcd.createChar(1, UB);
-  lcd.createChar(2, RT);
-  lcd.createChar(3, LL);
-  lcd.createChar(4, LB);
-  lcd.createChar(5, LR);
-  lcd.createChar(6, MB);
-  // lcd.createChar(0, check);
-  // lcd.createChar(1, cross);
-  // lcd.createChar(2, retarrow);
-}
+// Inits
+// void InitializeLCD()
+// {
+//   lcd.init();
+//   lcd.clear();
+//   lcd.backlight();
+//   pinMode(displayDimmPin, OUTPUT);
+//   analogWrite(displayDimmPin, 255);
+
+//   lcd.createChar(0, LT);
+//   lcd.createChar(1, UB);
+//   lcd.createChar(2, RT);
+//   lcd.createChar(3, LL);
+//   lcd.createChar(4, LB);
+//   lcd.createChar(5, LR);
+//   lcd.createChar(6, MB);
+//   // lcd.createChar(0, check);
+//   // lcd.createChar(1, cross);
+//   // lcd.createChar(2, retarrow);
+//   lcd.createChar(7, BS);
+// }
 
 void InicializeRelays()
 {
@@ -196,7 +285,7 @@ void InitializeSchedules()
   File file = SPIFFS.open(schedulesFile);
   if (!file)
   {
-    Display("Failed to open schedules", 2, true, true);
+    screen.DisplayMessage("Failed to open schedules", 2, true, true);
     return;
   }
 
@@ -206,25 +295,37 @@ void InitializeSchedules()
   convertFromJson(json, schedules);
 }
 
+void InitializeRotaryEncoder()
+{
+  rotaryEncoder.setEncoderType( EncoderType::HAS_PULLUP );
+  rotaryEncoder.setBoundaries( 1, 10, true );
+  rotaryEncoder.onTurned( &knobCallback );
+  rotaryEncoder.onPressed( &buttonCallback );
+  rotaryEncoder.begin();
+}
+
+// ##########################################
 // ##        ###      ###  ########        ##
 // ##  ###########  #####  ########  ########
 // ##      #######  #####  ########      ####
 // ##  ###########  #####  ########  ########
 // ##  #########      ###        ##        ##
+// ##########################################
+
 // File
 void SaveSchedules(IrrigationSchedules &schedules)
 {
   File file = SPIFFS.open(schedulesFile, "w");
   if (!file)
   {
-    Display("Failed to open file for writing", 2, true, true);
+    screen.DisplayMessage("Failed to open file for writing", 2, true, true);
     return;
   }
 
   String json = convertToJson(schedules);
   if (file.write((uint8_t *)json.c_str(), json.length()) != json.length())
   {
-    Display("Failed to write schedules", 2, true, true);
+    screen.DisplayMessage("Failed to write schedules", 2, true, true);
   }
 
   file.close();
@@ -234,7 +335,7 @@ void InitFS()
 {
   if (!SPIFFS.begin(true))
   {
-    Display("An Error has occurred while mounting SPIFFS", 0, true, true);
+    screen.DisplayMessage("An Error has occurred while mounting SPIFFS", 0, true, true);
     return;
   }
 }
@@ -244,7 +345,7 @@ void GetFile(String fileName)
   File file = SPIFFS.open(fileName);
   if (!file)
   {
-    Display("Failed to open file for reading", 0, true, true);
+    screen.DisplayMessage("Failed to open file for reading", 0, true, true);
     return;
   }
 
@@ -257,30 +358,35 @@ void GetFile(String fileName)
   file.close();
 }
 
+// ##################################################################################
 // ##  ####  ###      ###  ####  ##       ###  ########        ##       ####      ###
 // ##  ####  ##  ####  ##    ##  ##  ####  ##  ########  ########  ####  ##  ########
 // ##        ##        ##  #  #  ##  ####  ##  ########      ####       ####      ###
 // ##  ####  ##  ####  ##  ##    ##  ####  ##  ########  ########  ##  ##########  ##
 // ##  ####  ##  ####  ##  ####  ##       ###        ##        ##  ####  ###      ###
+// ##################################################################################
+
 // Handlers
 void handle_OnSetDimming()
 {
-  Display("Handle set dimming", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Handle set dimming", 0, true, true);
   int dimm = server.hasArg("dimm") ? server.arg("dimm").toInt() : 255;
   if (dimm < 0 || dimm > 255)
   {
-    Display("Invalid dimming", 1, true, true);
+    screen.DisplayMessage("Invalid dimming", 1, true, true);
     server.send(400, "text/html", "Invalid dimming");
     return;
   }
   analogWrite(displayDimmPin, dimm);
   server.send(200, "text/html", "OK (" + String(dimm) + ")");
-  Display("Finished on: " + String(dimm), 1, true, true);
+  screen.DisplayMessage("Finished on: " + String(dimm), 1, true, true);
 }
 
 void handle_OnGetSchedule()
 {
-  Display("Handle get schedule", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Handle get schedule", 0, true, true);
   String body;
   File file = SPIFFS.open("/Schedule", "r");
   if (file)
@@ -337,7 +443,7 @@ void handle_OnGetSchedule()
       body.replace("${sTM" + String(i) + "}", stm == i ? " selected" : "");
     }
     int dtr = (int)sch.getDaysToRun();
-    Display("R:" + String(dtr), 2, true, false);
+    screen.DisplayMessage("R:" + String(dtr), 2, true, false);
     for (int i = (int)IrrigationDaysToRun::All; i <= (int)IrrigationDaysToRun::Every7days; i++)
     {
       body.replace("${dTR" + String(i) + "}", dtr == i ? " selected" : "");
@@ -355,17 +461,18 @@ void handle_OnGetSchedule()
   }
 
   server.send(200, "text/html", body);
-  Display("Finished.", 1, true, true);
+  screen.DisplayMessage("Finished.", 1, true, true);
 }
 
 void handle_OnSetSchedule()
 {
-  Display("Handle set schedule", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Handle set schedule", 0, true, true);
   int id = server.hasArg("id") ? server.arg("id").toInt() : -1;
   int getStartTime = server.hasArg("startTimeHour") && server.hasArg("startTimeMinute") ? server.arg("startTimeHour").toInt() * 60 + server.arg("startTimeMinute").toInt() : -1;
   if (getStartTime < 0 || getStartTime > 1440)
   {
-    Display("Invalid start time", 1, true, true);
+    screen.DisplayMessage("Invalid start time", 1, true, true);
     server.send(400, "text/html", "Invalid start time");
     return;
   }
@@ -374,7 +481,7 @@ void handle_OnSetSchedule()
   {
     if (!server.hasArg("duration" + String(i + 1)) || server.arg("duration" + String(i + 1)).length() == 0 || server.arg("duration" + String(i + 1)).toInt() < 0 || server.arg("duration" + String(i + 1)).toInt() > 60)
     {
-      Display("Invalid duration", 1, true, true);
+      screen.DisplayMessage("Invalid duration", 1, true, true);
       server.send(400, "text/html", "Invalid duration" + String(i + 1));
       return;
     }
@@ -407,12 +514,13 @@ void handle_OnSetSchedule()
   SaveSchedules(schedules);
   server.sendHeader("Location", "/ScheduleList", true);
   server.send(303, "text/plain", "");
-  Display("Finished.", 1, true, true);
+  screen.DisplayMessage("Finished.", 1, true, true);
 }
 
 void handle_onScheduleList()
 {
-  Display("Handle schedule list", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Handle schedule list", 0, true, true);
   String body;
   File file = SPIFFS.open("/ScheduleList", "r");
   if (file)
@@ -442,20 +550,22 @@ void handle_onScheduleList()
   }
 
   server.send(200, "text/html", body);
-  Display("Finished.", 1, true, true);
+  screen.DisplayMessage("Finished.", 1, true, true);
 }
 
 void handle_OnGetSettings()
 {
-  Display("Handle get settings", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Handle get settings", 0, true, true);
   String jsonString = convertToJson(schedules);
   server.send(200, "text/html", jsonString);
-  Display("Finished.", 1, true, true);
+  screen.DisplayMessage("Finished.", 1, true, true);
 }
 
 void handle_OnRoot()
 {
-  Display("Starting handle request", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Starting handle request", 0, true, true);
   bool ch[irrigationChannelNumber];
   for (int i = 0; i < irrigationChannelNumber; i++)
   {
@@ -463,29 +573,32 @@ void handle_OnRoot()
   }
   String body = GetHtml(ch);
   server.send(200, "text/html", body);
-  Display("Finished.", 1, true, true);
+  screen.DisplayMessage("Finished.", 1, true, true);
 }
 
 void handle_OnToggleSwitch()
 {
-  Display("Handle toggle", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Handle toggle", 0, true, true);
   int ch = server.hasArg("ch") ? server.arg("ch").toInt() - 1 : -1;
   if (ch < -1 || ch > 7)
   {
-    Display("Invalid channel", 1, true, true);
+    screen.DisplayMessage("Invalid channel", 1, true, true);
     server.send(400, "application/json", "{\"error\": \"Invalid channel\"}");
     return;
   }
 
-  if(ch == -1)
+  if (ch == -1)
   {
     irrigationScheduleEnabled = true;
+    screen.IrrigationStatus(true);
     server.send(200, "application/json", "{\"status\": \"OK\", \"mode\": \"scheduled\", \"enabled\": " + String(irrigationScheduleEnabled) + "}");
-    Display("Finished on: all", 1, true, true);
+    screen.DisplayMessage("Finished on: all", 1, true, true);
     return;
   }
 
   irrigationScheduleEnabled = false;
+  screen.IrrigationStatus(false);
   int pin = schedules.getPin(ch);
 
   if (digitalRead(pin) == HIGH)
@@ -500,22 +613,27 @@ void handle_OnToggleSwitch()
   {
     digitalWrite(pin, HIGH);
   }
+  screen.OutChange(displayTimeoutInterval);
   server.send(200, "application/json",
               "{\"status\": \"OK\", \"channel\": " + String(ch + 1) + ", \"pin\": " + String(pin) + "}");
-  Display("Finished on: " + String(ch), 1, true, true);
+  screen.DisplayMessage("Finished on: " + String(ch), 1, true, true);
 }
 
 void handle_NotFound()
 {
-  Display("Page not found", 0, true, true);
+  screen.NetworkActivity(displayTimeoutInterval);
+  screen.DisplayMessage("Page not found", 0, true, true);
   server.send(404, "text/plain", "Page not found");
 }
 
+// ##################################################################################################
 // ##      ##       ###       ####      ###      ####      ###        ###      ###      ###  ####  ##
 // ####  ####  ####  ##  ####  #####  ####  ########  ####  #####  ########  ####  ####  ##    ##  ##
 // ####  ####       ###       ######  ####   #   ###        #####  ########  ####  ####  ##  #  #  ##
 // ####  ####  ##  ####  ##  #######  ####  # ##  ##  ####  #####  ########  ####  ####  ##  ##    ##
 // ##      ##  ####  ##  ####  ###      ###      ###  ####  #####  ######      ###      ###  ####  ##
+// ##################################################################################################
+
 // Irrigation
 void ManageIrrigation()
 {
@@ -543,8 +661,9 @@ void ManageIrrigation()
       {
         if (digitalRead(schedules.getPin(j)) == HIGH)
         {
-          digitalWrite(schedules.getPin(j), LOW); // Activate the valve
-          Display("Channel " + String(j + 1) + " started", 2, true, true);
+          digitalWrite(schedules.getPin(j), LOW);
+          screen.OutChange(displayTimeoutInterval);
+          screen.DisplayMessage("Channel " + String(j + 1) + " started", 2, true, true);
           Serial.printf("Channel %d started\n", j + 1);
         }
       }
@@ -553,7 +672,8 @@ void ManageIrrigation()
         if (digitalRead(schedules.getPin(j)) == LOW)
         {
           digitalWrite(schedules.getPin(j), HIGH); // Deactivate the valve
-          Display("Channel " + String(j + 1) + " stopped", 2, true, true);
+          screen.OutChange(displayTimeoutInterval);
+          screen.DisplayMessage("Channel " + String(j + 1) + " stopped", 2, true, true);
           Serial.printf("Channel %d stopped\n", j + 1);
         }
       }
@@ -604,25 +724,26 @@ void setup()
   Serial.begin(115200);
   delay(100);
 
-  InitializeLCD();
+  // InitializeLCD();
   InicializeRelays();
+  InitializeRotaryEncoder();
 
-  Display("Connecting to ", 0);
-  Display(ssid, 0, false, true);
+  screen.DisplayMessage("Connecting to ", 0);
+  screen.DisplayMessage(ssid, 0, false, true);
 
   // connect to your local wi-fi network
   WiFi.begin(ssid, password);
 
-  Display(".", 1, true, false);
+  screen.DisplayMessage(".", 1, true, false);
   // check wi-fi is connected to wi-fi network
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
-    Display(".", 1, false, false);
+    screen.DisplayMessage(".", 1, false, false);
   }
-  Display("WI-FI connected", 0, true, true);
-  Display("IP address: ", 1);
-  Display(WiFi.localIP().toString(), 1, false, true);
+  screen.DisplayMessage("WI-FI connected", 0, true, true);
+  screen.DisplayMessage("IP address: ", 1);
+  screen.DisplayMessage(WiFi.localIP().toString(), 1, false, true);
 
   InitFS();
   GetFile("/Index");
@@ -639,8 +760,8 @@ void setup()
   server.onNotFound(handle_NotFound);
 
   server.begin();
-  Display("HTTP server started", 0, true, true);
-  lcd.write(0);
+  screen.DisplayMessage("HTTP server started", 0, true, true);
+  // lcd.write(0);
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -667,22 +788,22 @@ void setup()
         type = "filesystem";
 
       // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      Display("Updating " + type, 0, true, true); })
+      screen.DisplayMessage("Updating " + type, 0, true, true); })
       .onEnd([]()
-             { Display("End", 0, true, true); })
+             { screen.DisplayMessage("End", 0, true, true); })
       .onProgress([](unsigned int progress, unsigned int total)
                   {
-                    Display("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
+                    screen.DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
                     // esp_task_wdt_reset();
                   })
       .onError([](ota_error_t error)
                {
-                Display("Error[" + String(error) + "]: ", 0, true, true);
-                if (error == OTA_AUTH_ERROR) Display("Auth Failed", 1, false, true);
-                else if (error == OTA_BEGIN_ERROR) Display("Begin Failed", 1, false, true);
-                else if (error == OTA_CONNECT_ERROR) Display("Connect Failed", 1, false, true);
-                else if (error == OTA_RECEIVE_ERROR) Display("Receive Failed", 1, false, true);
-                else if (error == OTA_END_ERROR) Display("End Failed", 1, false, true); });
+                screen.DisplayMessage("Error[" + String(error) + "]: ", 0, true, true);
+                if (error == OTA_AUTH_ERROR) screen.DisplayMessage("Auth Failed", 1, false, true);
+                else if (error == OTA_BEGIN_ERROR) screen.DisplayMessage("Begin Failed", 1, false, true);
+                else if (error == OTA_CONNECT_ERROR) screen.DisplayMessage("Connect Failed", 1, false, true);
+                else if (error == OTA_RECEIVE_ERROR) screen.DisplayMessage("Receive Failed", 1, false, true);
+                else if (error == OTA_END_ERROR) screen.DisplayMessage("End Failed", 1, false, true); });
 
   ArduinoOTA.begin();
 }
@@ -696,6 +817,8 @@ void setup()
 // #########        ###      ####      ###  ##################################
 // ###########################################################################
 // ###########################################################################
+
+// Loop
 void loop()
 {
   if (Serial.available())
@@ -707,7 +830,7 @@ void loop()
   }
 
   ManageIrrigation();
-  DisplayText();
+  screen.DisplayText();
   server.handleClient();
   ArduinoOTA.handle();
 }
