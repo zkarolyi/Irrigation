@@ -1,4 +1,8 @@
+#ifndef IRRIGATION_H
+#define IRRIGATION_H
+
 #include <map>
+#include <vector>
 #include <ArduinoJson.h>
 
 const int irrigationChannelNumber = 8;
@@ -22,130 +26,35 @@ enum class IrrigationDaysToRun
     Every7days
 };
 
-String IrrigationDaysToRunToString(IrrigationDaysToRun day)
-{
-    switch (day)
-    {
-    case IrrigationDaysToRun::All:
-        return "All";
-    case IrrigationDaysToRun::Odd:
-        return "Odd";
-    case IrrigationDaysToRun::Even:
-        return "Even";
-    case IrrigationDaysToRun::Every3days:
-        return "Every3days";
-    case IrrigationDaysToRun::Every4days:
-        return "Every4days";
-    case IrrigationDaysToRun::Every5days:
-        return "Every5days";
-    case IrrigationDaysToRun::Every6days:
-        return "Every6days";
-    case IrrigationDaysToRun::Every7days:
-        return "Every7days";
-    default:
-        return "Unknown";
-    }
-}
+String IrrigationDaysToRunToString(IrrigationDaysToRun day);
 
 // Class to represent an irrigation schedule
 class IrrigationSchedule
 {
 public:
     // Constructor
-    IrrigationSchedule()
-    {
-        startTime = 0;
-        for (int i = 0; i < irrigationChannelNumber; i++)
-        {
-            duration[i] = 0;
-        }
-        daysToRun = IrrigationDaysToRun::All;
-        weight = 100;
-    }
-
+    IrrigationSchedule();
     // Method to add a channel duration to the schedule
-    bool addChannelDuration(int channel, int duration)
-    {
-        if (channel < 0 || channel >= irrigationChannelNumber)
-        {
-            return false;
-        }
-        if (duration < 0 || duration > 60)
-        {
-            return false;
-        }
-        this->duration[channel] = duration;
-
-        return true;
-    }
-
+    bool addChannelDuration(int channel, int duration);
     // Method to get the start time of the schedule
-    int getStartTime() const
-    {
-        return startTime;
-    }
-
+    int getStartTime() const;
     // Method to get the start time of the schedule in hours
-    int getStartTimeHours() const
-    {
-        return startTime / 60;
-    }
-
+    int getStartTimeHours() const;
     // Method to get the start time of the schedule in minutes
-    int getStartTimeMinutes() const
-    {
-        return startTime % 60;
-    }
-
-    int getNumberOfChannels() const
-    {
-        return irrigationChannelNumber;
-    }
-
+    int getStartTimeMinutes() const;
+    int getNumberOfChannels() const;
     // Method to get the duration of a channel in the schedule
-    int getChannelDuration(int channel) const
-    {
-        if (channel < 0 || channel >= irrigationChannelNumber)
-        {
-            return -1;
-        }
-        return duration[channel];
-    }
-
+    int getChannelDuration(int channel) const;
     // Method to set start time of the schedule
-    void setStartTime(int startHours, int startMinutes)
-    {
-        startTime = startHours * 60 + startMinutes;
-    }
-
+    void setStartTime(int startHours, int startMinutes);
     // Method to set days to run on
-    void setDaysToRun(IrrigationDaysToRun daysToRun)
-    {
-        this->daysToRun = daysToRun;
-    }
-
+    void setDaysToRun(IrrigationDaysToRun daysToRun);
     // Method to get days to run on
-    IrrigationDaysToRun getDaysToRun() const
-    {
-        return daysToRun;
-    }
-
+    IrrigationDaysToRun getDaysToRun() const;
     // Method to set weight of the schedule
-    void setWeight(int weight)
-    {
-        if (weight < 0 || weight > 200)
-        {
-            return;
-        }
-        this->weight = weight;
-    }
-
+    void setWeight(int weight);
     // Method to get weight of the schedule
-    int getWeight() const
-    {
-        return weight;
-    }
-
+    int getWeight() const;
 private:
     int startTime;
     int duration[irrigationChannelNumber];
@@ -158,130 +67,27 @@ class IrrigationSchedules
 {
 public:
     // Constructor to initialize relay pins
-    IrrigationSchedules(std::initializer_list<int> pins)
-    {
-        int i = 0;
-        for (int pin : pins)
-        {
-            if (i < irrigationChannelNumber)
-            {
-                irrigationRelayPins[i++] = pin;
-            }
-        }
-    }
-
+    IrrigationSchedules(const std::vector<int> &pins);
     // Method to get the relay pin for a given channel
-    int getPin(int channel) const
-    {
-        if (channel >= 0 && channel < irrigationChannelNumber)
-        {
-            return irrigationRelayPins[channel];
-        }
-        return -1; // Return -1 for invalid channel
-    }
-
+    int getPin(int channel) const;
     // Method to add a schedule to the list
-    void addSchedule(IrrigationSchedule schedule)
-    {
-        schedules[schedules.size()] = schedule;
-    }
-
+    void addSchedule(IrrigationSchedule schedule);
     // Mothod to update a schedule in the list
-    void updateSchedule(int index, IrrigationSchedule schedule)
-    {
-        schedules[index] = schedule;
-    }
-
+    void updateSchedule(int index, IrrigationSchedule schedule);
     // Method to get the number of schedules in the list
-    int getNumberOfSchedules() const
-    {
-        return schedules.size();
-    }
-
+    int getNumberOfSchedules() const;
     // Method to get a schedule from the list
-    IrrigationSchedule getSchedule(int index) const
-    {
-        auto item = schedules.find(index);
-        if (item == schedules.end())
-        {
-            return IrrigationSchedule();
-        }
-        return item->second;
-    }
-
+    IrrigationSchedule getSchedule(int index) const;
     // Method to remove a schedule from the list
-    void removeSchedule(int index)
-    {
-        auto item = schedules.find(index);
-        if (item != schedules.end())
-        {
-            schedules.erase(item);
-        }
-    }
-
+    void removeSchedule(int index);
     // Method to remove all schedules
-    void clearSchedules()
-    {
-        schedules.clear(); // Clears the entire map
-    }
-
+    void clearSchedules();
 private:
     std::map<int, IrrigationSchedule> schedules;
     int irrigationRelayPins[irrigationChannelNumber];
 };
 
-String convertToJson(const IrrigationSchedules &schedules)
-{
-    JsonDocument doc;
-    JsonArray schedulesArray = doc.createNestedArray("schedules");
-    for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
-    {
-        IrrigationSchedule schedule = schedules.getSchedule(i);
-        JsonObject scheduleObject = schedulesArray.createNestedObject();
-        scheduleObject["startTime"] = schedule.getStartTime();
-        scheduleObject["startTimeString"] = (schedule.getStartTimeHours() < 10 ? "0" : "") + String(schedule.getStartTimeHours()) + ":" + (schedule.getStartTimeMinutes() < 10 ? "0" : "") + String(schedule.getStartTimeMinutes());
-        scheduleObject["daysToRun"] = static_cast<int>(schedule.getDaysToRun());
-        scheduleObject["daysToRunString"] = IrrigationDaysToRunToString(schedule.getDaysToRun());
-        scheduleObject["weight"] = schedule.getWeight();
-        JsonArray channelDurationsArray = scheduleObject.createNestedArray("channelDurations");
-        for (int j = 0; j < irrigationChannelNumber; j++)
-        {
-            int duration = schedule.getChannelDuration(j);
-            channelDurationsArray.add(duration);
-        }
-    }
-    String jsonString;
-    serializeJson(doc, jsonString);
-    return jsonString;
-}
+String convertToJson(const IrrigationSchedules &schedules);
+bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules);
 
-bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules)
-{
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, jsonString);
-    if (error)
-    {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
-        return false;
-    }
-
-    schedules.clearSchedules();
-    JsonArray schedulesArray = doc["schedules"].as<JsonArray>();
-    for (JsonObject scheduleObject : schedulesArray)
-    {
-        IrrigationSchedule schedule;
-        int startTime = scheduleObject["startTime"];
-        schedule.setStartTime(startTime / 60, startTime % 60);
-        schedule.setDaysToRun(static_cast<IrrigationDaysToRun>(scheduleObject["daysToRun"].as<int>()));
-        schedule.setWeight(scheduleObject["weight"]);
-        JsonArray channelDurationsArray = scheduleObject["channelDurations"].as<JsonArray>();
-        for (int i = 0; i < irrigationChannelNumber; i++)
-        {
-            schedule.addChannelDuration(i, channelDurationsArray[i].as<int>());
-        }
-        schedules.addSchedule(schedule);
-    }
-
-    return true;
-}
+#endif // IRRIGATION_H

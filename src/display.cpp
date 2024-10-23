@@ -1,4 +1,5 @@
 #include "display.h"
+#include "statuses.h"
 
 byte LT[8] PROGMEM = {B00111, B01111, B11111, B11111, B11111, B11111, B11111, B11111};
 byte UB[8] PROGMEM = {B11111, B11111, B11111, B00000, B00000, B00000, B00000, B00000};
@@ -28,7 +29,7 @@ byte bigNumbers[10][6] PROGMEM = {
 LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines);
 
 // Constructor
-Display::Display(std::initializer_list<int> pins)
+Display::Display(const std::vector<int>& pins)
 {
     lcd.init();
     lcd.clear();
@@ -128,7 +129,7 @@ void Display::DisplayStatus(int animation)
 
     // Schedule status
     lcd.setCursor(displayColumns - 1, 1);
-    lcd.write(irrigationEnabled ? B11001001 : 'M');
+    lcd.write(irrigationScheduleEnabled ? B11001001 : 'M');
 
     // Output change status
     lcd.setCursor(displayColumns - 1, 2);
@@ -240,19 +241,4 @@ void Display::DisplayMessage(String message, int row, bool first, bool last)
     }
     displayLinesPosition[row] = 0;
     DisplayText();
-}
-
-void Display::NetworkActivity(int timeout)
-{
-    displayNetworkActivity = timeout;
-}
-
-void Display::OutChange(int timeout)
-{
-    displayOutChange = timeout;
-}
-
-void Display::IrrigationStatus(bool enabled)
-{
-    irrigationEnabled = enabled;
 }
