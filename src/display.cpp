@@ -24,12 +24,13 @@ byte bigNumbers[10][6] PROGMEM = {
     {0, 6, 2, 4, 4, 5}          // 9
 };
 
+struct tm timeinfo;
 
 // LCD instance
 LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines);
 
 // Constructor
-Display::Display(const std::vector<int>& pins)
+Display::Display(const std::vector<int> &pins)
 {
     lcd.init();
     lcd.clear();
@@ -123,6 +124,12 @@ void Display::DisplayStatus(int animation)
         lcd.write((digitalRead(channelPins[i]) == HIGH ? '_' : animationChar)); // Update with actual pin logic
     }
 
+    // Display rotary encoder status
+    lcd.write(' ');
+    lcd.print(LongToString(rotaryEncoderPosition, 3));
+    lcd.write(':');
+    lcd.print(LongToString(rotaryEncoderButtonDuration, 5));
+
     // Network activity status
     lcd.setCursor(displayColumns - 1, 0);
     lcd.write(displayNetworkActivity > 0 ? B11001110 : ' ');
@@ -137,7 +144,7 @@ void Display::DisplayStatus(int animation)
 
     // Rain sensor status
     lcd.setCursor(displayColumns - 1, 3);
-    lcd.write(B11011110);
+    lcd.write(timeSynced ? 'Y' : B11011110);
 }
 
 void Display::HandleTimeouts(int elapsed)
@@ -161,56 +168,54 @@ void Display::DisplayText()
     HandleTimeouts(displayLastUpdateInterval);
 
     struct tm timeinfo;
+    timeSynced = getLocalTime(&timeinfo);
+
+    displayTimeout -= displayLastUpdateInterval;
 
     if (displayTimeout > 0)
     {
-        displayTimeout -= displayLastUpdateInterval;
-        if (displayTimeout > 0)
+        clearingNeeded = true;
+        for (int i = 0; i < displayLines - 1; i++)
         {
-            for (int i = 0; i < displayLines - 1; i++)
+            lcd.setCursor(0, i);
+            if (displayLinesText[i].length() <= displayColumns - 1)
             {
-                lcd.setCursor(0, i);
-                if (displayLinesText[i].length() <= displayColumns - 1)
+                lcd.print(displayLinesText[i]);
+                for (int j = displayLinesText[i].length(); j < displayColumns - 1; j++)
                 {
-                    lcd.print(displayLinesText[i]);
-                    for (int j = displayLinesText[i].length(); j < displayColumns - 1; j++)
-                    {
-                        lcd.print(" ");
-                    }
+                    lcd.print(" ");
+                }
+            }
+            else
+            {
+                if (displayLinesPosition[i] + displayColumns - 1 > displayLinesText[i].length())
+                {
+                    lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
+                    lcd.print(displayLinesText[i].substring(0, displayColumns - 1 - (displayLinesText[i].length() - displayLinesPosition[i])));
                 }
                 else
                 {
-                    if (displayLinesPosition[i] + displayColumns - 1 > displayLinesText[i].length())
-                    {
-                        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
-                        lcd.print(displayLinesText[i].substring(0, displayColumns - 1 - (displayLinesText[i].length() - displayLinesPosition[i])));
-                    }
-                    else
-                    {
-                        lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + displayColumns - 1));
-                    }
-                    displayLinesPosition[i]++;
-                    if (displayLinesPosition[i] >= displayLinesText[i].length())
-                    {
-                        displayLinesPosition[i] = 0;
-                    }
+                    lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + displayColumns - 1));
+                }
+                displayLinesPosition[i]++;
+                if (displayLinesPosition[i] >= displayLinesText[i].length())
+                {
+                    displayLinesPosition[i] = 0;
                 }
             }
-        }
-        else
-        {
-            for (size_t i = 0; i < displayLines - 1; i++)
-            {
-                displayLinesText[i] = "";
-            }
-            lcd.clear();
         }
     }
     else
     {
-        if (!getLocalTime(&timeinfo))
+        displayTimeout = 0;
+        if (clearingNeeded)
         {
-            displayLinesText[0] = "--/--/--";
+            clearingNeeded = false;
+            for (int i = 0; i < displayLines - 1; i++)
+            {
+                displayLinesText[i] = "";
+            }
+            lcd.clear();
         }
         DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
     }
@@ -241,4 +246,15 @@ void Display::DisplayMessage(String message, int row, bool first, bool last)
     }
     displayLinesPosition[row] = 0;
     DisplayText();
+}
+
+String Display::LongToString(long value, int digits)
+{
+    String strValue = String(value);
+    int padLength = digits - strValue.length();
+    while (strValue.length() < digits)
+    {
+        strValue = " " + strValue;
+    }
+    return strValue;
 }

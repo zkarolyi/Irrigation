@@ -24,13 +24,13 @@ public:
 private:
     int numOfChannels;
     int *channelPins;
-    // bool irrigationEnabled = true;
-    // int displayNetworkActivity = 0;
-    // int displayOutChange = 0;
+    bool timeSynced = false;
     String displayLinesText[displayLines - 1] = {"", "", ""};
     int displayLinesPosition[displayLines - 1] = {0};
-    unsigned long displayTimeout = -1;
+    long displayTimeout = 0;
     unsigned long displayLastUpdate = 0;
+    bool clearingNeeded = false;
+    String LongToString(long value, int digits);
 };
 
 #endif // DISPLAY_H
