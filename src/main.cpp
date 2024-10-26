@@ -8,8 +8,8 @@
 #include <ArduinoJson.h>
 #include <cmath>
 #include <ESP32RotaryEncoder.h>
-// #include "menu.h"
 #include "display.h"
+#include "menu.h"
 using namespace std;
 
 float temperature, humidity, pressure, altitude;
@@ -23,33 +23,7 @@ vector<String> v;
 WebServer server(80);
 IrrigationSchedules schedules(relayPins);
 Display *screen;
-RotaryEncoder rotaryEncoder(rotaryEncoderPin1, rotaryEncoderPin2, rotaryEncoderButton);
-
-// LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines); // set the LCD address to 0x27 (0x3F) for a 16 chars and 2 line display
-// static unsigned long lastScrollTime = 0;
-
-// ##############################################################
-// ##       ####      ###        ###      ###       ####      ###
-// ##  ####  ##  ####  #####  #####  ####  ##  ####  #####  #####
-// ##       ###  ####  #####  #####        ##       ######  #####
-// ##  ##  ####  ####  #####  #####  ####  ##  ##  #######  #####
-// ##  ####  ###      ######  #####  ####  ##  ####  ###      ###
-// ##############################################################
-
-// Rotary
-void knobCallback(long value)
-{
-  // This gets executed every time the knob is turned
-  rotaryEncoderPosition = value;
-  Serial.printf("Value: %i\n", value);
-}
-
-void buttonCallback(unsigned long duration)
-{
-  // This gets executed every time the pushbutton is pressed
-  rotaryEncoderButtonDuration = duration;
-  Serial.printf("boop! button was down for %u ms\n", duration);
-}
+Menu *menu;
 
 // ##########################################
 // ###      ###  ####  ###      ###        ##
@@ -83,15 +57,6 @@ void InitializeSchedules()
   file.close();
 
   convertFromJson(json, schedules);
-}
-
-void InitializeRotaryEncoder()
-{
-  rotaryEncoder.setEncoderType(EncoderType::HAS_PULLUP);
-  rotaryEncoder.setBoundaries(1, 10, true);
-  rotaryEncoder.onTurned(&knobCallback);
-  rotaryEncoder.onPressed(&buttonCallback);
-  rotaryEncoder.begin();
 }
 
 // ##########################################
@@ -168,7 +133,7 @@ void handle_OnSetDimming()
     server.send(400, "text/html", "Invalid dimming");
     return;
   }
-  analogWrite(displayDimmPin, dimm);
+  screen->DisplayDimm(dimm);
   server.send(200, "text/html", "OK (" + String(dimm) + ")");
   screen->DisplayMessage("Finished on: " + String(dimm), 1, true, true);
 }
@@ -516,8 +481,8 @@ void setup()
 
   // InitializeLCD();
   InicializeRelays();
-  InitializeRotaryEncoder();
-  screen = new Display(relayPins);
+  menu = new Menu( rotaryEncoderPin1, rotaryEncoderPin2, rotaryEncoderButton);
+  screen = new Display(relayPins, displayDimmPin);
 
   screen->DisplayMessage("Connecting to ", 0);
   screen->DisplayMessage(ssid, 0, false, true);

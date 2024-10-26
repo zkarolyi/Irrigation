@@ -30,8 +30,10 @@ struct tm timeinfo;
 LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines);
 
 // Constructor
-Display::Display(const std::vector<int> &pins)
+Display::Display(const std::vector<int> &pins, int dimmPin)
 {
+    displayDimmPin = dimmPin;
+
     lcd.init();
     lcd.clear();
     lcd.backlight();
@@ -124,11 +126,15 @@ void Display::DisplayStatus(int animation)
         lcd.write((digitalRead(channelPins[i]) == HIGH ? '_' : animationChar)); // Update with actual pin logic
     }
 
-    // Display rotary encoder status
-    lcd.write(' ');
-    lcd.print(LongToString(rotaryEncoderPosition, 3));
+    // Display menu status
+    // lcd.write(' ');
+    lcd.print(LongToString(MenuStatusL1, 2));
     lcd.write(':');
-    lcd.print(LongToString(rotaryEncoderButtonDuration, 5));
+    lcd.print(LongToString(MenuStatusL2, 2));
+    lcd.write(':');
+    lcd.print(LongToString(MenuStatusL3, 2));
+    lcd.write(':');
+    lcd.print(LongToString(MenuPosition, 2));
 
     // Network activity status
     lcd.setCursor(displayColumns - 1, 0);
@@ -156,6 +162,11 @@ void Display::HandleTimeouts(int elapsed)
     displayOutChange -= elapsed;
     if (displayOutChange < 0)
         displayOutChange = 0;
+}
+
+void Display::DisplayDimm(int value)
+{
+    analogWrite(displayDimmPin, value);
 }
 
 void Display::DisplayText()
