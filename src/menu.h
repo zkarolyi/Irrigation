@@ -17,6 +17,8 @@ private:
     RotaryEncoder *rotaryEncoder;
     long rotaryEncoderPosition;
     unsigned long rotaryEncoderButtonDuration;
+
+    void ResetMenu();
 };
 
 #endif

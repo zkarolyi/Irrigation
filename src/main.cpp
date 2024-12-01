@@ -501,6 +501,13 @@ void setup()
   screen->DisplayMessage("IP address: ", 1);
   screen->DisplayMessage(WiFi.localIP().toString(), 1, false, true);
 
+  wifiIpAddress = WiFi.localIP().toString();
+  wifiDnsIp = WiFi.dnsIP().toString();
+  wifiGatewayIp = WiFi.gatewayIP().toString();
+  wifiHostname = WiFi.getHostname();
+  wifiMacAddress = WiFi.macAddress();
+  wifiSsid = WiFi.SSID();
+
   InitFS();
   GetFile("/Index");
   InitializeSchedules();

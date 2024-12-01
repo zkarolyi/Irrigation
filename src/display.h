@@ -15,9 +15,6 @@ class Display
 {
 public:
     Display(const std::vector<int>& pins, int dimmPin);
-    void DisplayBigNumber(int row, int column, int num, bool colon = false);
-    void DisplayStatus(int animation);
-    void HandleTimeouts(int elapsed);
     void DisplayDimm(int value);
     void DisplayText();
     void DisplayMessage(String message, int row, bool first = true, bool last = false);
@@ -31,6 +28,12 @@ private:
     long displayTimeout = 0;
     unsigned long displayLastUpdate = 0;
     bool clearingNeeded = false;
+
+    void HandleTimeouts(int elapsed);
+    void DisplayStatus(int animation);
+    void DisplayBigNumber(int row, int column, int num, bool colon = false);
+    void DisplayMenu1(int dispRow);
+    void DisplayWifiStatus(int dispRow);
     String LongToString(long value, int digits);
 };
 

@@ -101,6 +101,44 @@ void Display::DisplayBigNumber(int row, int column, int num, bool colon)
     }
 }
 
+void Display::DisplayMenu1(int dispRow)
+{
+    lcd.setCursor(0, 0);
+    lcd.write(dispRow == 1 ? '>' : ' ');
+    lcd.print("WiFi information");
+    lcd.setCursor(0, 1);
+    lcd.write(dispRow == 2 ? '>' : ' ');
+    lcd.print("Menu item 2");
+    lcd.setCursor(0, 2);
+    lcd.write(dispRow == 3 ? '>' : ' ');
+    lcd.print("Menu item 3");
+}
+
+void Display::DisplayWifiStatus(int dispRow)
+{
+    if (dispRow == 1)
+    {
+        lcd.setCursor(0, 0);
+        lcd.print(wifiSsid);
+        lcd.setCursor(0, 1);
+        lcd.print("IP ");
+        lcd.print(wifiIpAddress);
+        lcd.setCursor(0, 2);
+        lcd.print(wifiMacAddress);
+    }
+    else if (dispRow == 2)
+    {
+        lcd.setCursor(0, 0);
+        lcd.print("DNS ");
+        lcd.print(wifiDnsIp);
+        lcd.setCursor(0, 1);
+        lcd.print("GW ");
+        lcd.print(wifiGatewayIp);
+        lcd.setCursor(0, 2);
+        lcd.print(wifiHostname);
+    }
+}
+
 void Display::DisplayStatus(int animation)
 {
     char animationChar;
@@ -219,16 +257,31 @@ void Display::DisplayText()
     else
     {
         displayTimeout = 0;
-        if (clearingNeeded)
+        if (clearingNeeded || MenuStatusChanged)
         {
             clearingNeeded = false;
+            MenuStatusChanged = false;
             for (int i = 0; i < displayLines - 1; i++)
             {
                 displayLinesText[i] = "";
             }
             lcd.clear();
         }
-        DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
+        if (MenuStatusL1 == 0)
+        {
+            DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
+        }
+        if (MenuStatusL1 == 1)
+        {
+            if(MenuStatusL2 == 0)
+            {
+                DisplayMenu1(MenuPosition);
+            }
+            if (MenuStatusL2 == 1)
+            {
+                DisplayWifiStatus(MenuPosition);
+            }
+        }
     }
     DisplayStatus(timeinfo.tm_sec);
 }

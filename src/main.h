@@ -10,7 +10,7 @@ const char *HOSTNAME = "IrrigationController";
 
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;
-const int daylightOffset_sec = 3600;
+const int daylightOffset_sec = 0; //3600;
 
 std::vector<int> relayPins = {12, 14, 27, 26, 25, 23, 32, 13};
 bool irrigationScheduleEnabled = true;
@@ -24,10 +24,18 @@ int MenuStatusL1 = 0;
 int MenuStatusL2 = 0;
 int MenuStatusL3 = 0;
 int long MenuPosition = 0;
+bool MenuStatusChanged = false;
 
 int displayDimmPin = 5;
 int displayNetworkActivity = 0;
 int displayOutChange = 0;
+
+String wifiIpAddress = "---.---.---.---";
+String wifiDnsIp = "---.---.---.---";
+String wifiGatewayIp = "---.---.---.---";
+String wifiHostname = "IrrigationController";
+String wifiMacAddress = "00:00:00:00:00:00";
+String wifiSsid = "SSID";
 
 const char *schedulesFile = "/schedules.json";
 
