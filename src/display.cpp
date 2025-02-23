@@ -101,17 +101,25 @@ void Display::DisplayBigNumber(int row, int column, int num, bool colon)
     }
 }
 
+void Display::DisplayMenu(int dispRow, int l1, int l2, int l3)
+{
+    // get selected menu item and display it
+}
+
+void Display::DisplayMenu(int dispRow, String menuItems[], int menuItemsCount)
+{
+    for (int i = 0; i < menuItemsCount; i++)
+    {
+        lcd.setCursor(0, i);
+        lcd.write(dispRow == i + 1 ? '>' : ' ');
+        lcd.print(menuItems[i]);
+    }
+}
+
 void Display::DisplayMenu1(int dispRow)
 {
-    lcd.setCursor(0, 0);
-    lcd.write(dispRow == 1 ? '>' : ' ');
-    lcd.print("WiFi information");
-    lcd.setCursor(0, 1);
-    lcd.write(dispRow == 2 ? '>' : ' ');
-    lcd.print("Menu item 2");
-    lcd.setCursor(0, 2);
-    lcd.write(dispRow == 3 ? '>' : ' ');
-    lcd.print("Menu item 3");
+    String menuItems[] = {"Wifi information", "Menu item 2", "Menu item 3"};
+    DisplayMenu(dispRow, menuItems, 3);
 }
 
 void Display::DisplayWifiStatus(int dispRow)
@@ -271,16 +279,9 @@ void Display::DisplayText()
         {
             DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
         }
-        if (MenuStatusL1 == 1)
+        if (MenuStatusL1 > 0)
         {
-            if(MenuStatusL2 == 0)
-            {
-                DisplayMenu1(MenuPosition);
-            }
-            if (MenuStatusL2 == 1)
-            {
-                DisplayWifiStatus(MenuPosition);
-            }
+            DisplayMenu(MenuPosition, MenuStatusL1, MenuStatusL2, MenuStatusL3);
         }
     }
     DisplayStatus(timeinfo.tm_sec);

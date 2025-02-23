@@ -1,24 +1,18 @@
-#include <ESP32RotaryEncoder.h>
 #ifndef MENU_H
 #define MENU_H
 
-class Menu
+#include <vector>
+#include <string>
+
+typedef struct MenuItem
 {
-public:
-    Menu(int rotaryEncoderPin1,int rotaryEncoderPin2,int rotaryEncoderButton);
-    ~Menu();
+    const struct MenuItem *subMenu; // Submenu pointer
+    const int subMenuCount;         // submenu number
+    const int boundaries;           // Menu boundaries
+    std::vector<std::string> menuItemsText;
+    void (*action)(void);           // Function pointer (optional)
+} MenuItem;
 
-private:
-    static void knobCallback(long value);           // Static callback for knob rotation
-    static void buttonCallback(unsigned long duration); // Static callback for button press
+MenuItem GetMenuItem(int L1, int L2, int L3);
 
-    static Menu *instance;
-
-    RotaryEncoder *rotaryEncoder;
-    long rotaryEncoderPosition;
-    unsigned long rotaryEncoderButtonDuration;
-
-    void ResetMenu();
-};
-
-#endif
+#endif // MENU_H

@@ -9,7 +9,7 @@
 #include <cmath>
 #include <ESP32RotaryEncoder.h>
 #include "display.h"
-#include "menu.h"
+#include "actions.h"
 using namespace std;
 
 float temperature, humidity, pressure, altitude;
@@ -23,7 +23,7 @@ vector<String> v;
 WebServer server(80);
 IrrigationSchedules schedules(relayPins);
 Display *screen;
-Menu *menu;
+Actions *actions;
 
 // ##########################################
 // ###      ###  ####  ###      ###        ##
@@ -481,7 +481,7 @@ void setup()
 
   // InitializeLCD();
   InicializeRelays();
-  menu = new Menu( rotaryEncoderPin1, rotaryEncoderPin2, rotaryEncoderButton);
+  actions = new Actions( rotaryEncoderPin1, rotaryEncoderPin2, rotaryEncoderButton);
   screen = new Display(relayPins, displayDimmPin);
 
   screen->DisplayMessage("Connecting to ", 0);
