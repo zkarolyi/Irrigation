@@ -1,5 +1,6 @@
 #include "display.h"
 #include "statuses.h"
+#include "parameters.h"
 
 byte LT[8] PROGMEM = {B00111, B01111, B11111, B11111, B11111, B11111, B11111, B11111};
 byte UB[8] PROGMEM = {B11111, B11111, B11111, B00000, B00000, B00000, B00000, B00000};
@@ -27,7 +28,7 @@ byte bigNumbers[10][6] PROGMEM = {
 struct tm timeinfo;
 
 // LCD instance
-LiquidCrystal_I2C lcd(0x27, displayColumns, displayLines);
+LiquidCrystal_I2C lcd(DISPLAY_ADDRESS, DISPLAY_COLUMNS, DISPLAY_LINES);
 
 // Constructor
 Display::Display(const std::vector<int> &pins, int dimmPin)
@@ -65,6 +66,11 @@ Display::Display(const std::vector<int> &pins, int dimmPin)
     }
 }
 
+LiquidCrystal_I2C Display::GetLcd()
+{
+    return lcd;
+}
+
 void Display::DisplayBigNumber(int row, int column, int num, bool colon)
 {
     for (int i = 3; i >= 0; i--)
@@ -99,27 +105,6 @@ void Display::DisplayBigNumber(int row, int column, int num, bool colon)
 
         column += 4; // Adjust for next digit placement
     }
-}
-
-void Display::DisplayMenu(int dispRow, int l1, int l2, int l3)
-{
-    // get selected menu item and display it
-}
-
-void Display::DisplayMenu(int dispRow, String menuItems[], int menuItemsCount)
-{
-    for (int i = 0; i < menuItemsCount; i++)
-    {
-        lcd.setCursor(0, i);
-        lcd.write(dispRow == i + 1 ? '>' : ' ');
-        lcd.print(menuItems[i]);
-    }
-}
-
-void Display::DisplayMenu1(int dispRow)
-{
-    String menuItems[] = {"Wifi information", "Menu item 2", "Menu item 3"};
-    DisplayMenu(dispRow, menuItems, 3);
 }
 
 void Display::DisplayWifiStatus(int dispRow)
@@ -166,36 +151,26 @@ void Display::DisplayStatus(int animation)
         break;
     }
 
-    lcd.setCursor(0, displayLines - 1);
+    lcd.setCursor(0, DISPLAY_LINES - 1);
     for (int i = 0; i < numOfChannels; i++)
     {
         lcd.write((digitalRead(channelPins[i]) == HIGH ? '_' : animationChar)); // Update with actual pin logic
     }
 
-    // Display menu status
-    // lcd.write(' ');
-    lcd.print(LongToString(MenuStatusL1, 2));
-    lcd.write(':');
-    lcd.print(LongToString(MenuStatusL2, 2));
-    lcd.write(':');
-    lcd.print(LongToString(MenuStatusL3, 2));
-    lcd.write(':');
-    lcd.print(LongToString(MenuPosition, 2));
-
     // Network activity status
-    lcd.setCursor(displayColumns - 1, 0);
+    lcd.setCursor(DISPLAY_COLUMNS - 1, 0);
     lcd.write(displayNetworkActivity > 0 ? B11001110 : ' ');
 
     // Schedule status
-    lcd.setCursor(displayColumns - 1, 1);
+    lcd.setCursor(DISPLAY_COLUMNS - 1, 1);
     lcd.write(irrigationScheduleEnabled ? B11001001 : 'M');
 
     // Output change status
-    lcd.setCursor(displayColumns - 1, 2);
+    lcd.setCursor(DISPLAY_COLUMNS - 1, 2);
     lcd.write(displayOutChange > 0 ? 'o' : ' ');
 
     // Rain sensor status
-    lcd.setCursor(displayColumns - 1, 3);
+    lcd.setCursor(DISPLAY_COLUMNS - 1, 3);
     lcd.write(timeSynced ? 'Y' : B11011110);
 }
 
@@ -217,42 +192,42 @@ void Display::DisplayDimm(int value)
 
 void Display::DisplayText()
 {
-    if (millis() - displayLastUpdate < displayLastUpdateInterval)
+    if (millis() - displayLastUpdate < DISPLAY_LAST_UPDATE_INTERVAL)
     {
         return;
     }
     displayLastUpdate = millis();
-    HandleTimeouts(displayLastUpdateInterval);
+    HandleTimeouts(DISPLAY_LAST_UPDATE_INTERVAL);
 
     struct tm timeinfo;
     timeSynced = getLocalTime(&timeinfo);
 
-    displayTimeout -= displayLastUpdateInterval;
+    displayTimeout -= DISPLAY_LAST_UPDATE_INTERVAL;
 
     if (displayTimeout > 0)
     {
         clearingNeeded = true;
-        for (int i = 0; i < displayLines - 1; i++)
+        for (int i = 0; i < DISPLAY_LINES - 1; i++)
         {
             lcd.setCursor(0, i);
-            if (displayLinesText[i].length() <= displayColumns - 1)
+            if (displayLinesText[i].length() <= DISPLAY_COLUMNS - 1)
             {
                 lcd.print(displayLinesText[i]);
-                for (int j = displayLinesText[i].length(); j < displayColumns - 1; j++)
+                for (int j = displayLinesText[i].length(); j < DISPLAY_COLUMNS - 1; j++)
                 {
                     lcd.print(" ");
                 }
             }
             else
             {
-                if (displayLinesPosition[i] + displayColumns - 1 > displayLinesText[i].length())
+                if (displayLinesPosition[i] + DISPLAY_COLUMNS - 1 > displayLinesText[i].length())
                 {
                     lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesText[i].length()));
-                    lcd.print(displayLinesText[i].substring(0, displayColumns - 1 - (displayLinesText[i].length() - displayLinesPosition[i])));
+                    lcd.print(displayLinesText[i].substring(0, DISPLAY_COLUMNS - 1 - (displayLinesText[i].length() - displayLinesPosition[i])));
                 }
                 else
                 {
-                    lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + displayColumns - 1));
+                    lcd.print(displayLinesText[i].substring(displayLinesPosition[i], displayLinesPosition[i] + DISPLAY_COLUMNS - 1));
                 }
                 displayLinesPosition[i]++;
                 if (displayLinesPosition[i] >= displayLinesText[i].length())
@@ -265,31 +240,23 @@ void Display::DisplayText()
     else
     {
         displayTimeout = 0;
-        if (clearingNeeded || MenuStatusChanged)
+        if (clearingNeeded)
         {
             clearingNeeded = false;
-            MenuStatusChanged = false;
-            for (int i = 0; i < displayLines - 1; i++)
+            for (int i = 0; i < DISPLAY_LINES - 1; i++)
             {
                 displayLinesText[i] = "";
             }
             lcd.clear();
         }
-        if (MenuStatusL1 == 0)
-        {
-            DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
-        }
-        if (MenuStatusL1 > 0)
-        {
-            DisplayMenu(MenuPosition, MenuStatusL1, MenuStatusL2, MenuStatusL3);
-        }
+        DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
     }
     DisplayStatus(timeinfo.tm_sec);
 }
 
 void Display::DisplayMessage(String message, int row, bool first, bool last)
 {
-    displayTimeout = displayTimeoutInterval;
+    displayTimeout = DISPLAY_TIMEOUT_INTERVAL;
     Serial.println(message);
 
     if (first)
@@ -300,11 +267,11 @@ void Display::DisplayMessage(String message, int row, bool first, bool last)
 
     if (last)
     {
-        if (displayLinesText[row].length() > displayColumns - 1)
+        if (displayLinesText[row].length() > DISPLAY_COLUMNS - 1)
         {
             displayLinesText[row] += "   ";
         }
-        while (displayLinesText[row].length() < displayColumns - 1)
+        while (displayLinesText[row].length() < DISPLAY_COLUMNS - 1)
         {
             displayLinesText[row] += " ";
         }

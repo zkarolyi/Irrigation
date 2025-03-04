@@ -1,18 +1,49 @@
 #ifndef MENU_H
 #define MENU_H
 
-#include <vector>
-#include <string>
+#include <LiquidCrystal_I2C.h>
+#include <LcdMenu.h>
+#include <MenuScreen.h>
+#include <ItemList.h>
+#include <ItemWidget.h>
+#include <ItemSubMenu.h>
+#include <ItemToggle.h>
+#include <ItemToggleInt.h>
+#include <ItemCommandInt.h>
+#include <ItemCommand.h>
+#include <input/SimpleRotaryAdapter.h>
+#include <display/LiquidCrystal_I2CAdapter.h>
+#include <renderer/CharacterDisplayRenderer.h>
+#include <widget/WidgetList.h>
+#include <widget/WidgetRange.h>
 
-typedef struct MenuItem
+class Menu
 {
-    const struct MenuItem *subMenu; // Submenu pointer
-    const int subMenuCount;         // submenu number
-    const int boundaries;           // Menu boundaries
-    std::vector<std::string> menuItemsText;
-    void (*action)(void);           // Function pointer (optional)
-} MenuItem;
+  public:
+    Menu();
+    void GenerateIrrigationSubmenu(int numberOfSchedules);
+    LcdMenu menu;
+    SimpleRotaryAdapter rotaryInput;
+    CharacterDisplayRenderer renderer;
+    SimpleRotary encoder;
+  private:
+    LiquidCrystal_I2CAdapter lcdAdapter;
+    // MenuScreen* mainScreen;
+    // MenuScreen* manualScreen;
+    // MenuScreen* schedulesScreen;
+    // MenuScreen* settingsScreen;
+};
 
-MenuItem GetMenuItem(int L1, int L2, int L3);
+// Callback functions
+extern void toggleChannel(int channel);
+extern void toggleCallback(bool isOn, int index);
+extern void commandCallback();
+extern void exitMenuCallback();
+
+// Screens
+extern MenuScreen* mainScreen;
+extern MenuScreen* manualScreen;
+extern MenuScreen* schedulesScreen;
+extern MenuScreen* settingsScreen;
 
 #endif // MENU_H

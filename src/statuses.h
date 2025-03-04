@@ -1,11 +1,7 @@
 #ifndef STATUSES_H
 #define STATUSES_H
 
-extern int MenuStatusL1;
-extern int MenuStatusL2;
-extern int MenuStatusL3;
-extern long MenuPosition;
-extern bool MenuStatusChanged;
+extern bool isMenuActive;
 
 extern bool irrigationScheduleEnabled;
 extern int displayNetworkActivity;
@@ -20,5 +16,7 @@ extern String wifiGatewayIp;
 extern String wifiHostname;
 extern String wifiMacAddress;
 extern String wifiSsid;  
+
+extern LiquidCrystal_I2C lcd;
 
 #endif

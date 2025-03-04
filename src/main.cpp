@@ -7,9 +7,9 @@
 #include "Irrigation.h"
 #include <ArduinoJson.h>
 #include <cmath>
-#include <ESP32RotaryEncoder.h>
 #include "display.h"
-#include "actions.h"
+#include "menu.h"
+#include "parameters.h"
 using namespace std;
 
 float temperature, humidity, pressure, altitude;
@@ -23,7 +23,8 @@ vector<String> v;
 WebServer server(80);
 IrrigationSchedules schedules(relayPins);
 Display *screen;
-Actions *actions;
+Menu *menu;
+bool isMenuActive = false;
 
 // ##########################################
 // ###      ###  ####  ###      ###        ##
@@ -124,7 +125,7 @@ void GetFile(String fileName)
 // Handlers
 void handle_OnSetDimming()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Handle set dimming", 0, true, true);
   int dimm = server.hasArg("dimm") ? server.arg("dimm").toInt() : 255;
   if (dimm < 0 || dimm > 255)
@@ -140,7 +141,7 @@ void handle_OnSetDimming()
 
 void handle_OnGetSchedule()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Handle get schedule", 0, true, true);
   String body;
   File file = SPIFFS.open("/Schedule", "r");
@@ -221,7 +222,7 @@ void handle_OnGetSchedule()
 
 void handle_OnSetSchedule()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Handle set schedule", 0, true, true);
   int id = server.hasArg("id") ? server.arg("id").toInt() : -1;
   int getStartTime = server.hasArg("startTimeHour") && server.hasArg("startTimeMinute") ? server.arg("startTimeHour").toInt() * 60 + server.arg("startTimeMinute").toInt() : -1;
@@ -274,7 +275,7 @@ void handle_OnSetSchedule()
 
 void handle_onScheduleList()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Handle schedule list", 0, true, true);
   String body;
   File file = SPIFFS.open("/ScheduleList", "r");
@@ -310,7 +311,7 @@ void handle_onScheduleList()
 
 void handle_OnGetSettings()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Handle get settings", 0, true, true);
   String jsonString = convertToJson(schedules);
   server.send(200, "text/html", jsonString);
@@ -319,7 +320,7 @@ void handle_OnGetSettings()
 
 void handle_OnRoot()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Starting handle request", 0, true, true);
   bool ch[irrigationChannelNumber];
   for (int i = 0; i < irrigationChannelNumber; i++)
@@ -333,7 +334,7 @@ void handle_OnRoot()
 
 void handle_OnToggleSwitch()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Handle toggle", 0, true, true);
   int ch = server.hasArg("ch") ? server.arg("ch").toInt() - 1 : -1;
   if (ch < -1 || ch > 7)
@@ -366,7 +367,7 @@ void handle_OnToggleSwitch()
   {
     digitalWrite(pin, HIGH);
   }
-  displayOutChange = displayTimeoutInterval;
+  displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
   server.send(200, "application/json",
               "{\"status\": \"OK\", \"channel\": " + String(ch + 1) + ", \"pin\": " + String(pin) + "}");
   screen->DisplayMessage("Finished on: " + String(ch), 1, true, true);
@@ -374,7 +375,7 @@ void handle_OnToggleSwitch()
 
 void handle_NotFound()
 {
-  displayNetworkActivity = displayTimeoutInterval;
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Page not found", 0, true, true);
   server.send(404, "text/plain", "Page not found");
 }
@@ -415,7 +416,7 @@ void ManageIrrigation()
         if (digitalRead(schedules.getPin(j)) == HIGH)
         {
           digitalWrite(schedules.getPin(j), LOW);
-          displayOutChange = displayTimeoutInterval;
+          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
           screen->DisplayMessage("Channel " + String(j + 1) + " started", 2, true, true);
           Serial.printf("Channel %d started\n", j + 1);
         }
@@ -425,7 +426,7 @@ void ManageIrrigation()
         if (digitalRead(schedules.getPin(j)) == LOW)
         {
           digitalWrite(schedules.getPin(j), HIGH); // Deactivate the valve
-          displayOutChange = displayTimeoutInterval;
+          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
           screen->DisplayMessage("Channel " + String(j + 1) + " stopped", 2, true, true);
           Serial.printf("Channel %d stopped\n", j + 1);
         }
@@ -481,7 +482,6 @@ void setup()
 
   // InitializeLCD();
   InicializeRelays();
-  actions = new Actions( rotaryEncoderPin1, rotaryEncoderPin2, rotaryEncoderButton);
   screen = new Display(relayPins, displayDimmPin);
 
   screen->DisplayMessage("Connecting to ", 0);
@@ -528,6 +528,14 @@ void setup()
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
+  Serial.println("Starting menu");
+  menu = new Menu();
+  menu->renderer.begin();
+  menu->GenerateIrrigationSubmenu(schedules.getNumberOfSchedules());
+  menu->menu.setScreen(mainScreen);
+  menu->menu.hide();
+  Serial.println("Menu started");
+
   // OTA
   // Port defaults to 3232
   // ArduinoOTA.setPort(3232);
@@ -570,6 +578,7 @@ void setup()
 
   ArduinoOTA.begin();
 }
+
 // ###########################################################################
 // ###########################################################################
 // #########  #########      ####     ####       #############################
@@ -593,7 +602,72 @@ void loop()
   }
 
   ManageIrrigation();
-  screen->DisplayText();
+  if (isMenuActive)
+  {
+    menu->rotaryInput.observe();
+  }
+  else
+  {
+    screen->DisplayText();
+    byte pushed = menu->encoder.push();
+    if (pushed != 0x00)
+    {
+      isMenuActive = true;
+      menu->menu.show();
+      Serial.println("Menu activated");
+    }
+  }
   server.handleClient();
   ArduinoOTA.handle();
+}
+
+// Callback functions
+
+void exitMenuCallback()
+{
+  isMenuActive = false;
+  menu->menu.hide();
+  Serial.println("Exit menu");
+}
+
+void toggleChannel(int channel)
+{
+  Serial.printf("Channel %d toggle start\n", channel);
+  screen->DisplayMessage("Handle toggle", 0, true, true);
+  if (channel < -1 || channel > 7)
+  {
+    screen->DisplayMessage("Invalid channel", 1, true, true);
+    Serial.println("Invalid channel");
+    return;
+  }
+
+  if (channel == -1)
+  {
+    irrigationScheduleEnabled = true;
+    screen->DisplayMessage("Finished on: all", 1, true, true);
+    Serial.println("All channels off, schedule enabled");
+  }
+  else
+  {
+    irrigationScheduleEnabled = false;
+    int pin = schedules.getPin(channel);
+
+    if (digitalRead(pin) == HIGH)
+    {
+      for (int i = 0; i < irrigationChannelNumber; i++)
+      {
+        digitalWrite(schedules.getPin(i), HIGH);
+      }
+      digitalWrite(pin, LOW);
+    }
+    else
+    {
+      digitalWrite(pin, HIGH);
+    }
+    displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+    screen->DisplayMessage("Finished on: " + String(channel), 1, true, true);
+    Serial.printf("Channel %d toggled\n", channel);
+  }
+
+  exitMenuCallback();
 }

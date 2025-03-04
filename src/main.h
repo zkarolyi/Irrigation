@@ -17,15 +17,6 @@ bool irrigationScheduleEnabled = true;
 int irrigationCheckInterval = 10000;
 int irrigationLastCheck = 0;
 
-int rotaryEncoderPin1 = 34;
-int rotaryEncoderPin2 = 35;
-int rotaryEncoderButton = 15;
-int MenuStatusL1 = 0;
-int MenuStatusL2 = 0;
-int MenuStatusL3 = 0;
-int long MenuPosition = 0;
-bool MenuStatusChanged = false;
-
 int displayDimmPin = 5;
 int displayNetworkActivity = 0;
 int displayOutChange = 0;
