@@ -4,7 +4,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <Arduino.h>
 #include <vector>
-#include "parameters.h"
+#include "settings.h"
 
 class Display
 {

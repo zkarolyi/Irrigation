@@ -4,23 +4,24 @@
 #include "SPIFFS.h"
 #include <ArduinoOTA.h>
 #include <Arduino.h>
-#include "Irrigation.h"
 #include <ArduinoJson.h>
 #include <cmath>
+#include "settings.h"
+#include "globals.h"
+#include "Irrigation.h"
 #include "display.h"
 #include "menu.h"
-#include "parameters.h"
 using namespace std;
 
 float temperature, humidity, pressure, altitude;
 
-/*Put your SSID & Password*/
-const char *ssid = "Csepp2";       // Enter SSID here
-const char *password = "Karolyi1"; // Enter Password here
+const char* ssid;
+const char* password;
 
 vector<String> v;
 
 WebServer server(80);
+bool wifiConnected = false;
 IrrigationSchedules schedules(relayPins);
 Display *screen;
 Menu *menu;
@@ -58,6 +59,87 @@ void InitializeSchedules()
   file.close();
 
   convertFromJson(json, schedules);
+}
+
+bool InitializeWiFi()
+{
+  screen->DisplayMessage("Connecting to ", 0);
+  screen->DisplayMessage(ssid, 0, false, true);
+  Serial.println("Connect to router");
+
+  // connect to your local wi-fi network
+  WiFi.disconnect();
+  WiFi.hostname(HOSTNAME);
+  WiFi.begin(ssid, password);
+
+  screen->DisplayMessage(".", 1, true, false);
+  // check wi-fi is connected to wi-fi network
+  int countDown = 10;
+  while (WiFi.status() != WL_CONNECTED && countDown-- > 0)
+  {
+    delay(1000);
+    screen->DisplayMessage(".", 1, false, false);
+  }
+  if (countDown > 0)
+  {
+    screen->DisplayMessage("WI-FI connected", 0, true, true);
+    screen->DisplayMessage("IP address: ", 1);
+    screen->DisplayMessage(WiFi.localIP().toString(), 1, false, true);
+
+    wifiIpAddress = WiFi.localIP().toString();
+    wifiDnsIp = WiFi.dnsIP().toString();
+    wifiGatewayIp = WiFi.gatewayIP().toString();
+    wifiHostname = WiFi.getHostname();
+    wifiMacAddress = WiFi.macAddress();
+    wifiSsid = WiFi.SSID();
+    return true;
+  }
+  screen->DisplayMessage("WI-FI connection failed", 1, true, true);
+  return false;
+}
+
+void InitializeOTA(){
+      // OTA
+    // Port defaults to 3232
+    // ArduinoOTA.setPort(3232);
+    //
+    // Hostname defaults to esp32-[MAC]
+    ArduinoOTA.setHostname(HOSTNAME);
+    //
+    // No authentication by default
+    // ArduinoOTA.setPassword("admin");
+    //
+    // Password can be set with it's md5 value as well
+    // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+    // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+    ArduinoOTA
+        .onStart([]()
+                 {
+                 String type;
+                 if (ArduinoOTA.getCommand() == U_FLASH)
+                   type = "sketch";
+                 else // U_SPIFFS
+                   type = "filesystem";
+
+                 // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+                 screen->DisplayMessage("Updating " + type, 0, true, true); })
+        .onEnd([]()
+               { screen->DisplayMessage("End", 0, true, true); })
+        .onProgress([](unsigned int progress, unsigned int total)
+                    {
+                      screen->DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
+                      // esp_task_wdt_reset();
+                    })
+        .onError([](ota_error_t error)
+                 {
+                 screen->DisplayMessage("Error[" + String(error) + "]: ", 0, true, true);
+                 if (error == OTA_AUTH_ERROR) screen->DisplayMessage("Auth Failed", 1, false, true);
+                 else if (error == OTA_BEGIN_ERROR) screen->DisplayMessage("Begin Failed", 1, false, true);
+                 else if (error == OTA_CONNECT_ERROR) screen->DisplayMessage("Connect Failed", 1, false, true);
+                 else if (error == OTA_RECEIVE_ERROR) screen->DisplayMessage("Receive Failed", 1, false, true);
+                 else if (error == OTA_END_ERROR) screen->DisplayMessage("End Failed", 1, false, true); });
+
+    ArduinoOTA.begin();
 }
 
 // ##########################################
@@ -112,6 +194,55 @@ void GetFile(String fileName)
   }
 
   file.close();
+}
+
+void saveWiFiCredentials(const char *newSsid, const char *newPassword)
+{
+  ssid = newSsid;
+  password = newPassword;
+  Serial.printf("Saving wifi credentials: %s, %s\n", ssid, password);
+  File file = SPIFFS.open("/wifi.txt", FILE_WRITE);
+  if (!file)
+  {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  file.println(ssid);
+  file.println(password);
+  file.close();
+
+  Serial.println("Wifi credentials saved");
+  wifiConnected = InitializeWiFi();
+}
+
+boolean readWiFiCredentials()
+{
+  if (!SPIFFS.exists("/wifi.txt"))
+  {
+    Serial.println("No wifi file found");
+    return false;
+  }
+  File file = SPIFFS.open("/wifi.txt", FILE_READ);
+  if (!file)
+  {
+    Serial.println("Failed to open file for reading");
+    return false;
+  }
+  // file.readStringUntil('\n').toCharArray(ssid, 32);
+  // ssid[strlen(ssid) - 1] = '\0';
+  // file.readStringUntil('\n').toCharArray(password, 64);
+  // password[strlen(password) - 1] = '\0';
+  String ssidString = file.readStringUntil('\n');
+  String passwordString = file.readStringUntil('\n');
+  file.close();
+
+  ssidString.trim();
+  passwordString.trim();
+
+  ssid = strdup(ssidString.c_str());
+  password = strdup(passwordString.c_str());
+  Serial.println("Wifi read from file");
+  return true;
 }
 
 // ##################################################################################
@@ -271,6 +402,7 @@ void handle_OnSetSchedule()
   server.sendHeader("Location", "/ScheduleList", true);
   server.send(303, "text/plain", "");
   screen->DisplayMessage("Finished.", 1, true, true);
+  menu->GenerateIrrigationSubmenu(schedules.getNumberOfSchedules());
 }
 
 void handle_onScheduleList()
@@ -392,7 +524,7 @@ void handle_NotFound()
 void ManageIrrigation()
 {
   // return if interval not reached
-  if (!irrigationScheduleEnabled || millis() - irrigationLastCheck < irrigationCheckInterval)
+  if (!irrigationScheduleEnabled || !wifiConnected || millis() - irrigationLastCheck < irrigationCheckInterval)
   {
     return;
   }
@@ -484,49 +616,42 @@ void setup()
   InicializeRelays();
   screen = new Display(relayPins, displayDimmPin);
 
-  screen->DisplayMessage("Connecting to ", 0);
-  screen->DisplayMessage(ssid, 0, false, true);
-
-  // connect to your local wi-fi network
-  WiFi.begin(ssid, password);
-
-  screen->DisplayMessage(".", 1, true, false);
-  // check wi-fi is connected to wi-fi network
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(1000);
-    screen->DisplayMessage(".", 1, false, false);
-  }
-  screen->DisplayMessage("WI-FI connected", 0, true, true);
-  screen->DisplayMessage("IP address: ", 1);
-  screen->DisplayMessage(WiFi.localIP().toString(), 1, false, true);
-
-  wifiIpAddress = WiFi.localIP().toString();
-  wifiDnsIp = WiFi.dnsIP().toString();
-  wifiGatewayIp = WiFi.gatewayIP().toString();
-  wifiHostname = WiFi.getHostname();
-  wifiMacAddress = WiFi.macAddress();
-  wifiSsid = WiFi.SSID();
-
   InitFS();
+
+  if (readWiFiCredentials())
+  {
+    wifiConnected = InitializeWiFi();
+  }
+  else
+  {
+    screen->DisplayMessage("No wifi credentials", 1, true, true);
+  }
+
   GetFile("/Index");
   InitializeSchedules();
 
-  server.on("/", handle_OnRoot);
-  server.on("/ToggleSwitch", HTTP_GET, handle_OnToggleSwitch);
-  server.on("/Schedule", HTTP_GET, handle_OnGetSchedule);
-  server.on("/Schedule", HTTP_POST, handle_OnSetSchedule);
-  server.on("/SetDimming", HTTP_GET, handle_OnSetDimming);
-  server.on("/ScheduleList", HTTP_GET, handle_onScheduleList);
-  server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
-  server.serveStatic("/", SPIFFS, "/");
-  server.onNotFound(handle_NotFound);
+  if (wifiConnected)
+  {
+    server.on("/", handle_OnRoot);
+    server.on("/ToggleSwitch", HTTP_GET, handle_OnToggleSwitch);
+    server.on("/Schedule", HTTP_GET, handle_OnGetSchedule);
+    server.on("/Schedule", HTTP_POST, handle_OnSetSchedule);
+    server.on("/SetDimming", HTTP_GET, handle_OnSetDimming);
+    server.on("/ScheduleList", HTTP_GET, handle_onScheduleList);
+    server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
+    server.serveStatic("/", SPIFFS, "/");
+    server.onNotFound(handle_NotFound);
 
-  server.begin();
-  screen->DisplayMessage("HTTP server started", 0, true, true);
+    server.begin();
+    screen->DisplayMessage("HTTP server started", 0, true, true);
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  }
+  else
+  {
+    screen->DisplayMessage("HTTP server not started", 0, true, true);
+  }
+
   // lcd.write(0);
-
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   Serial.println("Starting menu");
   menu = new Menu();
@@ -536,47 +661,14 @@ void setup()
   menu->menu.hide();
   Serial.println("Menu started");
 
-  // OTA
-  // Port defaults to 3232
-  // ArduinoOTA.setPort(3232);
-  //
-  // Hostname defaults to esp32-[MAC]
-  ArduinoOTA.setHostname(HOSTNAME);
-  //
-  // No authentication by default
-  // ArduinoOTA.setPassword("admin");
-  //
-  // Password can be set with it's md5 value as well
-  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
-  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
-  ArduinoOTA
-      .onStart([]()
-               {
-                 String type;
-                 if (ArduinoOTA.getCommand() == U_FLASH)
-                   type = "sketch";
-                 else // U_SPIFFS
-                   type = "filesystem";
-
-                 // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-                 screen->DisplayMessage("Updating " + type, 0, true, true); })
-      .onEnd([]()
-             { screen->DisplayMessage("End", 0, true, true); })
-      .onProgress([](unsigned int progress, unsigned int total)
-                  {
-                    screen->DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
-                    // esp_task_wdt_reset();
-                  })
-      .onError([](ota_error_t error)
-               {
-                 screen->DisplayMessage("Error[" + String(error) + "]: ", 0, true, true);
-                 if (error == OTA_AUTH_ERROR) screen->DisplayMessage("Auth Failed", 1, false, true);
-                 else if (error == OTA_BEGIN_ERROR) screen->DisplayMessage("Begin Failed", 1, false, true);
-                 else if (error == OTA_CONNECT_ERROR) screen->DisplayMessage("Connect Failed", 1, false, true);
-                 else if (error == OTA_RECEIVE_ERROR) screen->DisplayMessage("Receive Failed", 1, false, true);
-                 else if (error == OTA_END_ERROR) screen->DisplayMessage("End Failed", 1, false, true); });
-
-  ArduinoOTA.begin();
+  if (wifiConnected)
+  {
+    InitializeOTA();
+  }
+  else
+  {
+    screen->DisplayMessage("OTA not started", 0, true, true);
+  }
 }
 
 // ###########################################################################
@@ -614,11 +706,13 @@ void loop()
     {
       isMenuActive = true;
       menu->menu.show();
-      Serial.println("Menu activated");
     }
   }
-  server.handleClient();
-  ArduinoOTA.handle();
+  if (wifiConnected)
+  {
+    server.handleClient();
+    ArduinoOTA.handle();
+  }
 }
 
 // Callback functions
@@ -628,6 +722,12 @@ void exitMenuCallback()
   isMenuActive = false;
   menu->menu.hide();
   Serial.println("Exit menu");
+}
+
+void backlightCallback(int value)
+{
+    Serial.printf("Backlight: %d\n", value);
+    screen->DisplayDimm(value);
 }
 
 void toggleChannel(int channel)

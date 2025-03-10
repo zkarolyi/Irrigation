@@ -1,6 +1,6 @@
 #include "display.h"
-#include "statuses.h"
-#include "parameters.h"
+#include "settings.h"
+#include "globals.h"
 
 byte LT[8] PROGMEM = {B00111, B01111, B11111, B11111, B11111, B11111, B11111, B11111};
 byte UB[8] PROGMEM = {B11111, B11111, B11111, B00000, B00000, B00000, B00000, B00000};
@@ -200,7 +200,7 @@ void Display::DisplayText()
     HandleTimeouts(DISPLAY_LAST_UPDATE_INTERVAL);
 
     struct tm timeinfo;
-    timeSynced = getLocalTime(&timeinfo);
+    timeSynced = getLocalTime(&timeinfo, 20);
 
     displayTimeout -= DISPLAY_LAST_UPDATE_INTERVAL;
 
@@ -249,9 +249,11 @@ void Display::DisplayText()
             }
             lcd.clear();
         }
-        DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
+        if (timeSynced)
+            DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
     }
-    DisplayStatus(timeinfo.tm_sec);
+    if (timeSynced)
+        DisplayStatus(timeinfo.tm_sec);
 }
 
 void Display::DisplayMessage(String message, int row, bool first, bool last)

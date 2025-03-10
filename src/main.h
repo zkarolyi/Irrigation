@@ -6,7 +6,7 @@ void GetFile(String fileName);
 String GetHtml(bool ch[]);
 void InitFS();
 
-const char *HOSTNAME = "IrrigationController";
+const char *HOSTNAME = "Irrigation";
 
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;
@@ -21,12 +21,12 @@ int displayDimmPin = 5;
 int displayNetworkActivity = 0;
 int displayOutChange = 0;
 
-String wifiIpAddress = "---.---.---.---";
-String wifiDnsIp = "---.---.---.---";
-String wifiGatewayIp = "---.---.---.---";
-String wifiHostname = "IrrigationController";
-String wifiMacAddress = "00:00:00:00:00:00";
-String wifiSsid = "SSID";
+String wifiIpAddress;
+String wifiDnsIp;
+String wifiGatewayIp;
+const char* wifiHostname;
+String wifiMacAddress;
+String wifiSsid;
 
 const char *schedulesFile = "/schedules.json";
 
