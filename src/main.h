@@ -1,9 +1,6 @@
 void handle_OnRoot();
 void handle_OnToggleSwitch();
 void handle_NotFound();
-String SendHTML(float temperature, float humidity, float pressure, float altitude);
-void GetFile(String fileName);
-String GetHtml(bool ch[]);
 void InitFS();
 
 const char *HOSTNAME = "Irrigation";
@@ -24,7 +21,7 @@ int displayOutChange = 0;
 String wifiIpAddress;
 String wifiDnsIp;
 String wifiGatewayIp;
-const char* wifiHostname;
+String wifiHostname;
 String wifiMacAddress;
 String wifiSsid;
 

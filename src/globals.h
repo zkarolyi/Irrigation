@@ -18,7 +18,7 @@ extern bool WifiConnected;
 extern String wifiIpAddress;
 extern String wifiDnsIp;
 extern String wifiGatewayIp;
-extern const char* wifiHostname;
+extern String wifiHostname;
 extern String wifiMacAddress;
 extern String wifiSsid;  
 

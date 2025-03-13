@@ -43,6 +43,7 @@ extern void exitMenuCallback();
 extern void inputSsidCallback(char *value);
 extern void inputPwdCallback(char *value);
 extern void commandWifiCallback();
+extern void wifiInformationCallback();
 extern void backlightCallback(int value);
 
 // Screens
@@ -51,6 +52,5 @@ extern MenuScreen* manualScreen;
 extern MenuScreen* schedulesScreen;
 extern MenuScreen* settingsScreen;
 extern MenuScreen* wifiSettingsScreen;
-extern MenuScreen* wifiInformationScreen;
 
 #endif // MENU_H

@@ -48,9 +48,6 @@ Display::Display(const std::vector<int> &pins, int dimmPin)
     lcd.createChar(4, LB);
     lcd.createChar(5, LR);
     lcd.createChar(6, MB);
-    // lcd.createChar(0, check);
-    // lcd.createChar(1, cross);
-    // lcd.createChar(2, retarrow);
     lcd.createChar(7, BS);
 
     numOfChannels = pins.size();

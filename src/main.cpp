@@ -15,10 +15,8 @@ using namespace std;
 
 float temperature, humidity, pressure, altitude;
 
-const char* ssid;
-const char* password;
-
-vector<String> v;
+const char *ssid;
+const char *password;
 
 WebServer server(80);
 bool wifiConnected = false;
@@ -98,23 +96,24 @@ bool InitializeWiFi()
   return false;
 }
 
-void InitializeOTA(){
-      // OTA
-    // Port defaults to 3232
-    // ArduinoOTA.setPort(3232);
-    //
-    // Hostname defaults to esp32-[MAC]
-    ArduinoOTA.setHostname(HOSTNAME);
-    //
-    // No authentication by default
-    // ArduinoOTA.setPassword("admin");
-    //
-    // Password can be set with it's md5 value as well
-    // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
-    // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
-    ArduinoOTA
-        .onStart([]()
-                 {
+void InitializeOTA()
+{
+  // OTA
+  // Port defaults to 3232
+  // ArduinoOTA.setPort(3232);
+  //
+  // Hostname defaults to esp32-[MAC]
+  ArduinoOTA.setHostname(HOSTNAME);
+  //
+  // No authentication by default
+  // ArduinoOTA.setPassword("admin");
+  //
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+  ArduinoOTA
+      .onStart([]()
+               {
                  String type;
                  if (ArduinoOTA.getCommand() == U_FLASH)
                    type = "sketch";
@@ -123,15 +122,15 @@ void InitializeOTA(){
 
                  // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
                  screen->DisplayMessage("Updating " + type, 0, true, true); })
-        .onEnd([]()
-               { screen->DisplayMessage("End", 0, true, true); })
-        .onProgress([](unsigned int progress, unsigned int total)
-                    {
-                      screen->DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
-                      // esp_task_wdt_reset();
-                    })
-        .onError([](ota_error_t error)
-                 {
+      .onEnd([]()
+             { screen->DisplayMessage("End", 0, true, true); })
+      .onProgress([](unsigned int progress, unsigned int total)
+                  {
+                    screen->DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
+                    // esp_task_wdt_reset();
+                  })
+      .onError([](ota_error_t error)
+               {
                  screen->DisplayMessage("Error[" + String(error) + "]: ", 0, true, true);
                  if (error == OTA_AUTH_ERROR) screen->DisplayMessage("Auth Failed", 1, false, true);
                  else if (error == OTA_BEGIN_ERROR) screen->DisplayMessage("Begin Failed", 1, false, true);
@@ -139,7 +138,7 @@ void InitializeOTA(){
                  else if (error == OTA_RECEIVE_ERROR) screen->DisplayMessage("Receive Failed", 1, false, true);
                  else if (error == OTA_END_ERROR) screen->DisplayMessage("End Failed", 1, false, true); });
 
-    ArduinoOTA.begin();
+  ArduinoOTA.begin();
 }
 
 // ##########################################
@@ -176,24 +175,6 @@ void InitFS()
     screen->DisplayMessage("An Error has occurred while mounting SPIFFS", 0, true, true);
     return;
   }
-}
-
-void GetFile(String fileName)
-{
-  File file = SPIFFS.open(fileName);
-  if (!file)
-  {
-    screen->DisplayMessage("Failed to open file for reading", 0, true, true);
-    return;
-  }
-
-  // vector<String> v;
-  while (file.available())
-  {
-    v.push_back(file.readStringUntil('\n'));
-  }
-
-  file.close();
 }
 
 void saveWiFiCredentials(const char *newSsid, const char *newPassword)
@@ -454,12 +435,26 @@ void handle_OnRoot()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Starting handle request", 0, true, true);
-  bool ch[irrigationChannelNumber];
-  for (int i = 0; i < irrigationChannelNumber; i++)
+
+  String body;
+  File file = SPIFFS.open("/Index", "r");
+  if (file)
   {
-    ch[i] = digitalRead(schedules.getPin(i));
+    body = file.readString();
+    for (int i = 0; i < irrigationChannelNumber; i++)
+    {
+      if (!digitalRead(schedules.getPin(i)))
+      {
+        Serial.println("Channel " + String(i + 1) + " is on");
+        body.replace("{{SetActive}}", "document.getElementById('ch" + String(i+1) + "').classList.add('button-check');");
+      }
+      file.close();
+    }
+
+  } else {
+    body = "Failed to open file";
   }
-  String body = GetHtml(ch);
+
   server.send(200, "text/html", body);
   screen->DisplayMessage("Finished.", 1, true, true);
 }
@@ -536,6 +531,7 @@ void ManageIrrigation()
   localtime_r(&now, &timeinfo);
   int currentTime = (timeinfo.tm_hour * 3600) + (timeinfo.tm_min * 60) + timeinfo.tm_sec;
 
+  int channelToStart = -1;
   for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
   {
     IrrigationSchedule schedule = schedules.getSchedule(i);
@@ -545,54 +541,34 @@ void ManageIrrigation()
       int endTime = startTime + 60 * schedule.getChannelDuration(j);
       if (currentTime >= startTime && currentTime < endTime)
       {
-        if (digitalRead(schedules.getPin(j)) == HIGH)
-        {
-          digitalWrite(schedules.getPin(j), LOW);
-          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-          screen->DisplayMessage("Channel " + String(j + 1) + " started", 2, true, true);
-          Serial.printf("Channel %d started\n", j + 1);
-        }
-      }
-      else
-      {
-        if (digitalRead(schedules.getPin(j)) == LOW)
-        {
-          digitalWrite(schedules.getPin(j), HIGH); // Deactivate the valve
-          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-          screen->DisplayMessage("Channel " + String(j + 1) + " stopped", 2, true, true);
-          Serial.printf("Channel %d stopped\n", j + 1);
-        }
+        channelToStart = j;
+        break;
       }
       startTime = endTime;
     }
   }
-}
-
-String GetHtml(bool ch[])
-{
-  String ptr;
-  for (String s : v)
-  {
-    ptr += s;
-  }
 
   for (int i = 0; i < irrigationChannelNumber; i++)
   {
-    ptr.replace("${ch" + String(i + 1) + "_state}", ch[i] ? "on" : "off");
+    if (i != channelToStart)
+    {
+      if (digitalRead(schedules.getPin(i)) == LOW)
+      {
+        digitalWrite(schedules.getPin(i), HIGH);
+        displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+        screen->DisplayMessage("Channel " + String(i + 1) + " stopped", 1, true, true);
+      }
+    }
+    else
+    {
+      if (digitalRead(schedules.getPin(i)) == HIGH)
+      {
+        digitalWrite(schedules.getPin(i), LOW);
+        displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+        screen->DisplayMessage("Channel " + String(i + 1) + " started", 2, true, true);
+      }
+    }
   }
-
-  return ptr;
-}
-
-String SendHTML(float temperature, float humidity, float pressure, float altitude)
-{
-  String ptr;
-  for (String s : v)
-  {
-    ptr += s;
-  }
-
-  return ptr;
 }
 
 // ###########################################################################
@@ -627,7 +603,6 @@ void setup()
     screen->DisplayMessage("No wifi credentials", 1, true, true);
   }
 
-  GetFile("/Index");
   InitializeSchedules();
 
   if (wifiConnected)
@@ -726,8 +701,16 @@ void exitMenuCallback()
 
 void backlightCallback(int value)
 {
-    Serial.printf("Backlight: %d\n", value);
-    screen->DisplayDimm(value);
+  Serial.printf("Backlight: %d\n", value);
+  screen->DisplayDimm(value);
+}
+
+void wifiInformationCallback()
+{
+  exitMenuCallback();
+  screen->DisplayMessage("SSID: " + wifiSsid, 0, true, true);
+  screen->DisplayMessage("IP: " + wifiIpAddress, 1, true, true);
+  screen->DisplayMessage("Hostname: " + wifiHostname, 2, true, true);
 }
 
 void toggleChannel(int channel)
