@@ -25,6 +25,13 @@ String wifiHostname;
 String wifiMacAddress;
 String wifiSsid;
 
+void InitializeWebServer();
+void handle_OnGetSchedule();
+void handle_OnSetSchedule();
+void handle_OnSetDimming();
+void handle_onScheduleList();
+void handle_OnGetSettings();
+
 const char *schedulesFile = "/schedules.json";
 
 String LongToString(long number, int digits)

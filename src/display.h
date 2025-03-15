@@ -12,7 +12,8 @@ public:
     Display(const std::vector<int>& pins, int dimmPin);
     void DisplayDimm(int value);
     void DisplayText();
-    void DisplayMessage(String message, int row, bool first = true, bool last = false);
+    void DisplayMessage(String message, bool first = true, bool last = false);
+    void DisplayActivate(int timeout = DISPLAY_TIMEOUT_INTERVAL);
     LiquidCrystal_I2C GetLcd();
 private:
     int numOfChannels;
@@ -20,9 +21,10 @@ private:
     int displayDimmPin;
     bool timeSynced = false;
     String displayLinesText[DISPLAY_LINES - 1] = {"", "", ""};
-    int displayLinesPosition[DISPLAY_LINES - 1] = {0};
+    int displayLinesPosition[DISPLAY_LINES - 1] = {0, 0, 0};
     long displayTimeout = 0;
     unsigned long displayLastUpdate = 0;
+    unsigned long displayLastActivity = 0;
     bool clearingNeeded = false;
 
     void HandleTimeouts(int elapsed);

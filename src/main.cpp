@@ -49,7 +49,7 @@ void InitializeSchedules()
   File file = SPIFFS.open(schedulesFile);
   if (!file)
   {
-    screen->DisplayMessage("Failed to open schedules", 2, true, true);
+    screen->DisplayMessage("Failed to open schedules", true, true);
     return;
   }
 
@@ -61,8 +61,8 @@ void InitializeSchedules()
 
 bool InitializeWiFi()
 {
-  screen->DisplayMessage("Connecting to ", 0);
-  screen->DisplayMessage(ssid, 0, false, true);
+  screen->DisplayMessage("Connecting to ");
+  screen->DisplayMessage(ssid, false, true);
   Serial.println("Connect to router");
 
   // connect to your local wi-fi network
@@ -70,19 +70,19 @@ bool InitializeWiFi()
   WiFi.hostname(HOSTNAME);
   WiFi.begin(ssid, password);
 
-  screen->DisplayMessage(".", 1, true, false);
+  screen->DisplayMessage(".", true, false);
   // check wi-fi is connected to wi-fi network
   int countDown = 10;
   while (WiFi.status() != WL_CONNECTED && countDown-- > 0)
   {
     delay(1000);
-    screen->DisplayMessage(".", 1, false, false);
+    screen->DisplayMessage(".", false, false);
   }
   if (countDown > 0)
   {
-    screen->DisplayMessage("WI-FI connected", 0, true, true);
-    screen->DisplayMessage("IP address: ", 1);
-    screen->DisplayMessage(WiFi.localIP().toString(), 1, false, true);
+    screen->DisplayMessage("WI-FI connected", true, true);
+    screen->DisplayMessage("IP address: ");
+    screen->DisplayMessage(WiFi.localIP().toString(), false, true);
 
     wifiIpAddress = WiFi.localIP().toString();
     wifiDnsIp = WiFi.dnsIP().toString();
@@ -90,10 +90,28 @@ bool InitializeWiFi()
     wifiHostname = WiFi.getHostname();
     wifiMacAddress = WiFi.macAddress();
     wifiSsid = WiFi.SSID();
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    InitializeWebServer();
     return true;
   }
-  screen->DisplayMessage("WI-FI connection failed", 1, true, true);
+  screen->DisplayMessage("WI-FI connection failed", true, true);
+  screen->DisplayMessage("HTTP server not started", true, true);
   return false;
+}
+
+void InitializeWebServer(){
+  server.on("/", handle_OnRoot);
+  server.on("/ToggleSwitch", HTTP_GET, handle_OnToggleSwitch);
+  server.on("/Schedule", HTTP_GET, handle_OnGetSchedule);
+  server.on("/Schedule", HTTP_POST, handle_OnSetSchedule);
+  server.on("/SetDimming", HTTP_GET, handle_OnSetDimming);
+  server.on("/ScheduleList", HTTP_GET, handle_onScheduleList);
+  server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
+  server.serveStatic("/", SPIFFS, "/");
+  server.onNotFound(handle_NotFound);
+
+  server.begin();
+  screen->DisplayMessage("HTTP server started", true, true);
 }
 
 void InitializeOTA()
@@ -121,22 +139,22 @@ void InitializeOTA()
                    type = "filesystem";
 
                  // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-                 screen->DisplayMessage("Updating " + type, 0, true, true); })
+                 screen->DisplayMessage("Updating " + type, true, true); })
       .onEnd([]()
-             { screen->DisplayMessage("End", 0, true, true); })
+             { screen->DisplayMessage("End", true, true); })
       .onProgress([](unsigned int progress, unsigned int total)
                   {
-                    screen->DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", 1, true, true);
+                    screen->DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", true, true);
                     // esp_task_wdt_reset();
                   })
       .onError([](ota_error_t error)
                {
-                 screen->DisplayMessage("Error[" + String(error) + "]: ", 0, true, true);
-                 if (error == OTA_AUTH_ERROR) screen->DisplayMessage("Auth Failed", 1, false, true);
-                 else if (error == OTA_BEGIN_ERROR) screen->DisplayMessage("Begin Failed", 1, false, true);
-                 else if (error == OTA_CONNECT_ERROR) screen->DisplayMessage("Connect Failed", 1, false, true);
-                 else if (error == OTA_RECEIVE_ERROR) screen->DisplayMessage("Receive Failed", 1, false, true);
-                 else if (error == OTA_END_ERROR) screen->DisplayMessage("End Failed", 1, false, true); });
+                 screen->DisplayMessage("Error[" + String(error) + "]: ", true, true);
+                 if (error == OTA_AUTH_ERROR) screen->DisplayMessage("Auth Failed", false, true);
+                 else if (error == OTA_BEGIN_ERROR) screen->DisplayMessage("Begin Failed", false, true);
+                 else if (error == OTA_CONNECT_ERROR) screen->DisplayMessage("Connect Failed", false, true);
+                 else if (error == OTA_RECEIVE_ERROR) screen->DisplayMessage("Receive Failed", false, true);
+                 else if (error == OTA_END_ERROR) screen->DisplayMessage("End Failed", false, true); });
 
   ArduinoOTA.begin();
 }
@@ -155,14 +173,14 @@ void SaveSchedules(IrrigationSchedules &schedules)
   File file = SPIFFS.open(schedulesFile, "w");
   if (!file)
   {
-    screen->DisplayMessage("Failed to open file for writing", 2, true, true);
+    screen->DisplayMessage("Failed to open file for writing", true, true);
     return;
   }
 
   String json = convertToJson(schedules);
   if (file.write((uint8_t *)json.c_str(), json.length()) != json.length())
   {
-    screen->DisplayMessage("Failed to write schedules", 2, true, true);
+    screen->DisplayMessage("Failed to write schedules", true, true);
   }
 
   file.close();
@@ -172,7 +190,7 @@ void InitFS()
 {
   if (!SPIFFS.begin(true))
   {
-    screen->DisplayMessage("An Error has occurred while mounting SPIFFS", 0, true, true);
+    screen->DisplayMessage("An Error has occurred while mounting SPIFFS", true, true);
     return;
   }
 }
@@ -238,23 +256,23 @@ boolean readWiFiCredentials()
 void handle_OnSetDimming()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle set dimming", 0, true, true);
+  screen->DisplayMessage("Handle set dimming", true, true);
   int dimm = server.hasArg("dimm") ? server.arg("dimm").toInt() : 255;
   if (dimm < 0 || dimm > 255)
   {
-    screen->DisplayMessage("Invalid dimming", 1, true, true);
+    screen->DisplayMessage("Invalid dimming", true, true);
     server.send(400, "text/html", "Invalid dimming");
     return;
   }
   screen->DisplayDimm(dimm);
   server.send(200, "text/html", "OK (" + String(dimm) + ")");
-  screen->DisplayMessage("Finished on: " + String(dimm), 1, true, true);
+  screen->DisplayMessage("Finished on: " + String(dimm), true, true);
 }
 
 void handle_OnGetSchedule()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle get schedule", 0, true, true);
+  screen->DisplayMessage("Handle get schedule", true, true);
   String body;
   File file = SPIFFS.open("/Schedule", "r");
   if (file)
@@ -311,7 +329,7 @@ void handle_OnGetSchedule()
       body.replace("${sTM" + String(i) + "}", stm == i ? " selected" : "");
     }
     int dtr = (int)sch.getDaysToRun();
-    screen->DisplayMessage("R:" + String(dtr), 2, true, false);
+    screen->DisplayMessage("R:" + String(dtr), true, false);
     for (int i = (int)IrrigationDaysToRun::All; i <= (int)IrrigationDaysToRun::Every7days; i++)
     {
       body.replace("${dTR" + String(i) + "}", dtr == i ? " selected" : "");
@@ -329,18 +347,18 @@ void handle_OnGetSchedule()
   }
 
   server.send(200, "text/html", body);
-  screen->DisplayMessage("Finished.", 1, true, true);
+  screen->DisplayMessage("Finished.", true, true);
 }
 
 void handle_OnSetSchedule()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle set schedule", 0, true, true);
+  screen->DisplayMessage("Handle set schedule", true, true);
   int id = server.hasArg("id") ? server.arg("id").toInt() : -1;
   int getStartTime = server.hasArg("startTimeHour") && server.hasArg("startTimeMinute") ? server.arg("startTimeHour").toInt() * 60 + server.arg("startTimeMinute").toInt() : -1;
   if (getStartTime < 0 || getStartTime > 1440)
   {
-    screen->DisplayMessage("Invalid start time", 1, true, true);
+    screen->DisplayMessage("Invalid start time", true, true);
     server.send(400, "text/html", "Invalid start time");
     return;
   }
@@ -349,7 +367,7 @@ void handle_OnSetSchedule()
   {
     if (!server.hasArg("duration" + String(i + 1)) || server.arg("duration" + String(i + 1)).length() == 0 || server.arg("duration" + String(i + 1)).toInt() < 0 || server.arg("duration" + String(i + 1)).toInt() > 60)
     {
-      screen->DisplayMessage("Invalid duration", 1, true, true);
+      screen->DisplayMessage("Invalid duration", true, true);
       server.send(400, "text/html", "Invalid duration" + String(i + 1));
       return;
     }
@@ -382,14 +400,14 @@ void handle_OnSetSchedule()
   SaveSchedules(schedules);
   server.sendHeader("Location", "/ScheduleList", true);
   server.send(303, "text/plain", "");
-  screen->DisplayMessage("Finished.", 1, true, true);
+  screen->DisplayMessage("Finished.", true, true);
   menu->GenerateIrrigationSubmenu(schedules.getNumberOfSchedules());
 }
 
 void handle_onScheduleList()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle schedule list", 0, true, true);
+  screen->DisplayMessage("Handle schedule list", true, true);
   String body;
   File file = SPIFFS.open("/ScheduleList", "r");
   if (file)
@@ -419,22 +437,22 @@ void handle_onScheduleList()
   }
 
   server.send(200, "text/html", body);
-  screen->DisplayMessage("Finished.", 1, true, true);
+  screen->DisplayMessage("Finished.", true, true);
 }
 
 void handle_OnGetSettings()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle get settings", 0, true, true);
+  screen->DisplayMessage("Handle get settings", true, true);
   String jsonString = convertToJson(schedules);
   server.send(200, "text/html", jsonString);
-  screen->DisplayMessage("Finished.", 1, true, true);
+  screen->DisplayMessage("Finished.", true, true);
 }
 
 void handle_OnRoot()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Starting handle request", 0, true, true);
+  screen->DisplayMessage("Starting handle request", true, true);
 
   String body;
   File file = SPIFFS.open("/Index", "r");
@@ -456,17 +474,17 @@ void handle_OnRoot()
   }
 
   server.send(200, "text/html", body);
-  screen->DisplayMessage("Finished.", 1, true, true);
+  screen->DisplayMessage("Finished.", true, true);
 }
 
 void handle_OnToggleSwitch()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle toggle", 0, true, true);
+  screen->DisplayMessage("Handle toggle", true, true);
   int ch = server.hasArg("ch") ? server.arg("ch").toInt() - 1 : -1;
   if (ch < -1 || ch > 7)
   {
-    screen->DisplayMessage("Invalid channel", 1, true, true);
+    screen->DisplayMessage("Invalid channel", true, true);
     server.send(400, "application/json", "{\"error\": \"Invalid channel\"}");
     return;
   }
@@ -475,7 +493,7 @@ void handle_OnToggleSwitch()
   {
     irrigationScheduleEnabled = true;
     server.send(200, "application/json", "{\"status\": \"OK\", \"mode\": \"scheduled\", \"enabled\": " + String(irrigationScheduleEnabled) + "}");
-    screen->DisplayMessage("Finished on: all", 1, true, true);
+    screen->DisplayMessage("Finished on: all", true, true);
     return;
   }
 
@@ -497,13 +515,13 @@ void handle_OnToggleSwitch()
   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
   server.send(200, "application/json",
               "{\"status\": \"OK\", \"channel\": " + String(ch + 1) + ", \"pin\": " + String(pin) + "}");
-  screen->DisplayMessage("Finished on: " + String(ch), 1, true, true);
+  screen->DisplayMessage("Finished on: " + String(ch), true, true);
 }
 
 void handle_NotFound()
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Page not found", 0, true, true);
+  screen->DisplayMessage("Page not found", true, true);
   server.send(404, "text/plain", "Page not found");
 }
 
@@ -556,7 +574,7 @@ void ManageIrrigation()
       {
         digitalWrite(schedules.getPin(i), HIGH);
         displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-        screen->DisplayMessage("Channel " + String(i + 1) + " stopped", 1, true, true);
+        screen->DisplayMessage("Channel " + String(i + 1) + " stopped", true, true);
       }
     }
     else
@@ -565,7 +583,7 @@ void ManageIrrigation()
       {
         digitalWrite(schedules.getPin(i), LOW);
         displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-        screen->DisplayMessage("Channel " + String(i + 1) + " started", 2, true, true);
+        screen->DisplayMessage("Channel " + String(i + 1) + " started", true, true);
       }
     }
   }
@@ -600,33 +618,10 @@ void setup()
   }
   else
   {
-    screen->DisplayMessage("No wifi credentials", 1, true, true);
+    screen->DisplayMessage("No wifi credentials", true, true);
   }
 
   InitializeSchedules();
-
-  if (wifiConnected)
-  {
-    server.on("/", handle_OnRoot);
-    server.on("/ToggleSwitch", HTTP_GET, handle_OnToggleSwitch);
-    server.on("/Schedule", HTTP_GET, handle_OnGetSchedule);
-    server.on("/Schedule", HTTP_POST, handle_OnSetSchedule);
-    server.on("/SetDimming", HTTP_GET, handle_OnSetDimming);
-    server.on("/ScheduleList", HTTP_GET, handle_onScheduleList);
-    server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
-    server.serveStatic("/", SPIFFS, "/");
-    server.onNotFound(handle_NotFound);
-
-    server.begin();
-    screen->DisplayMessage("HTTP server started", 0, true, true);
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  }
-  else
-  {
-    screen->DisplayMessage("HTTP server not started", 0, true, true);
-  }
-
-  // lcd.write(0);
 
   Serial.println("Starting menu");
   menu = new Menu();
@@ -642,7 +637,7 @@ void setup()
   }
   else
   {
-    screen->DisplayMessage("OTA not started", 0, true, true);
+    screen->DisplayMessage("OTA not started", true, true);
   }
 }
 
@@ -676,6 +671,10 @@ void loop()
   else
   {
     screen->DisplayText();
+    byte rotation = menu->encoder.rotate();
+    if(rotation != 0x00){
+      screen->DisplayActivate();
+    }
     byte pushed = menu->encoder.push();
     if (pushed != 0x00)
     {
@@ -708,18 +707,18 @@ void backlightCallback(int value)
 void wifiInformationCallback()
 {
   exitMenuCallback();
-  screen->DisplayMessage("SSID: " + wifiSsid, 0, true, true);
-  screen->DisplayMessage("IP: " + wifiIpAddress, 1, true, true);
-  screen->DisplayMessage("Hostname: " + wifiHostname, 2, true, true);
+  screen->DisplayMessage("SSID: " + wifiSsid, true, true);
+  screen->DisplayMessage("IP: " + wifiIpAddress, true, true);
+  screen->DisplayMessage("Hostname: " + wifiHostname, true, true);
 }
 
 void toggleChannel(int channel)
 {
   Serial.printf("Channel %d toggle start\n", channel);
-  screen->DisplayMessage("Handle toggle", 0, true, true);
+  screen->DisplayMessage("Handle toggle", true, true);
   if (channel < -1 || channel > 7)
   {
-    screen->DisplayMessage("Invalid channel", 1, true, true);
+    screen->DisplayMessage("Invalid channel", true, true);
     Serial.println("Invalid channel");
     return;
   }
@@ -727,7 +726,7 @@ void toggleChannel(int channel)
   if (channel == -1)
   {
     irrigationScheduleEnabled = true;
-    screen->DisplayMessage("Finished on: all", 1, true, true);
+    screen->DisplayMessage("Finished on: all", true, true);
     Serial.println("All channels off, schedule enabled");
   }
   else
@@ -748,7 +747,7 @@ void toggleChannel(int channel)
       digitalWrite(pin, HIGH);
     }
     displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-    screen->DisplayMessage("Finished on: " + String(channel), 1, true, true);
+    screen->DisplayMessage("Finished on: " + String(channel), true, true);
     Serial.printf("Channel %d toggled\n", channel);
   }
 

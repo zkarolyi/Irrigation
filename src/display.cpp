@@ -187,12 +187,22 @@ void Display::DisplayDimm(int value)
     analogWrite(displayDimmPin, value);
 }
 
+void Display::DisplayActivate(int timeout)
+{
+    displayTimeout = timeout;
+    displayLastActivity = millis();
+}
+
 void Display::DisplayText()
 {
     if (millis() - displayLastUpdate < DISPLAY_LAST_UPDATE_INTERVAL)
     {
         return;
     }
+
+    unsigned long elapsed = (millis() - displayLastActivity) * 4 / 1000;
+    DisplayDimm(250 - elapsed > 50 ? 250 - elapsed : 50);
+
     displayLastUpdate = millis();
     HandleTimeouts(DISPLAY_LAST_UPDATE_INTERVAL);
 
@@ -240,10 +250,6 @@ void Display::DisplayText()
         if (clearingNeeded)
         {
             clearingNeeded = false;
-            for (int i = 0; i < DISPLAY_LINES - 1; i++)
-            {
-                displayLinesText[i] = "";
-            }
             lcd.clear();
         }
         if (timeSynced)
@@ -253,15 +259,23 @@ void Display::DisplayText()
         DisplayStatus(timeinfo.tm_sec);
 }
 
-void Display::DisplayMessage(String message, int row, bool first, bool last)
+void Display::DisplayMessage(String message, bool first, bool last)
 {
     displayTimeout = DISPLAY_TIMEOUT_INTERVAL;
+    displayLastActivity = millis();
     Serial.println(message);
 
+    int row = DISPLAY_LINES - 2;
     if (first)
     {
+        for (int i = 0; i < row; i++)
+        {
+            displayLinesText[i] = displayLinesText[i + 1];
+            displayLinesPosition[i] = displayLinesPosition[i + 1];
+        }
         displayLinesText[row] = "";
     }
+
     displayLinesText[row] += message;
 
     if (last)
