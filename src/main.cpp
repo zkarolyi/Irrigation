@@ -20,10 +20,11 @@ const char *password;
 
 WebServer server(80);
 bool wifiConnected = false;
-IrrigationSchedules schedules(relayPins);
+IrrigationSchedules schedules;
 Display *screen;
 Menu *menu;
 bool isMenuActive = false;
+std::vector<int> relayPins = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4, RELAY_PIN_5, RELAY_PIN_6, RELAY_PIN_7, RELAY_PIN_8};
 
 // ##########################################
 // ###      ###  ####  ###      ###        ##
@@ -373,8 +374,6 @@ void handle_OnSetSchedule()
     }
   }
 
-  // startTimeHour=5&startTimeMinute=0&daysToRun=Saturday&weight=100&duration1=0&duration2=3&duration3=0&duration4=0&duration5=0&duration6=0&duration7=0&duration8=0
-
   IrrigationSchedule currSchedule;
   if (id >= 0 && id < schedules.getNumberOfSchedules())
   {
@@ -401,7 +400,7 @@ void handle_OnSetSchedule()
   server.sendHeader("Location", "/ScheduleList", true);
   server.send(303, "text/plain", "");
   screen->DisplayMessage("Finished.", true, true);
-  menu->GenerateIrrigationSubmenu(schedules.getNumberOfSchedules());
+  menu->GenerateIrrigationSubmenu();
 }
 
 void handle_onScheduleList()
@@ -418,13 +417,12 @@ void handle_onScheduleList()
     {
       IrrigationSchedule sch = schedules.getSchedule(i);
       lines += "<div class=\"listItem\">";
-      lines += std::to_string(sch.getStartTimeHours()) + ":" + std::to_string(sch.getStartTimeMinutes());
+      lines += string(sch.getStartTimeString().c_str());
       lines += "</div>";
       lines += "<div class=\"listItem\">";
       lines += std::to_string(sch.getWeight());
       lines += "</div>";
       lines += "<div class=\"listItem\">";
-      // lines += "<button class=\"linkButton\" onclick=\"//Schedule?id=" + std::to_string(i) + "\">Details</button>";
       lines += "<a href=\"Schedule?id=" + std::to_string(i) + "\" class=\"linkButton\">Details</a>";
       lines += "</div>";
     }
@@ -554,7 +552,7 @@ void ManageIrrigation()
   {
     IrrigationSchedule schedule = schedules.getSchedule(i);
     int startTime = schedule.getStartTime() * 60;
-    for (int j = 0; j < schedule.getNumberOfChannels(); j++)
+    for (int j = 0; j < schedules.getNumberOfChannels(); j++)
     {
       int endTime = startTime + 60 * schedule.getChannelDuration(j);
       if (currentTime >= startTime && currentTime < endTime)
@@ -606,7 +604,7 @@ void setup()
 
   Serial.println("Starting Irrigation Controller");
 
-  // InitializeLCD();
+  schedules.setPins(relayPins);
   InicializeRelays();
   screen = new Display(relayPins, displayDimmPin);
 
@@ -626,7 +624,8 @@ void setup()
   Serial.println("Starting menu");
   menu = new Menu();
   menu->renderer.begin();
-  menu->GenerateIrrigationSubmenu(schedules.getNumberOfSchedules());
+  menu->GenerateIrrigationSubmenu();
+  menu->GenerateManualScreen();
   menu->menu.setScreen(mainScreen);
   menu->menu.hide();
   Serial.println("Menu started");
@@ -752,4 +751,23 @@ void toggleChannel(int channel)
   }
 
   exitMenuCallback();
+}
+
+
+void commandScheduleSelectCallback(int scheduleIndex){
+  Serial.printf("Selected schedule %d\n", scheduleIndex);
+  menu->GenerateScheduleViewSubmenu(scheduleIndex);
+  menu->menu.setScreen(scheduleViewScreen);
+}
+
+void commandScheduleEditCallback(int scheduleIndex){
+  Serial.printf("Edit schedule %d\n", scheduleIndex);
+}
+
+void commandScheduleDeleteCallback(int scheduleIndex){
+  Serial.printf("Delete schedule %d\n", scheduleIndex);
+}
+
+void commandScheduleSaveCallback(int scheduleIndex){
+  Serial.printf("Save schedule %d\n", scheduleIndex);
 }

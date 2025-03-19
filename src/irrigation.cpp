@@ -26,7 +26,9 @@ String IrrigationDaysToRunToString(IrrigationDaysToRun day)
     }
 }
 
-// Constructor
+// ----------------------------------------
+// Constructor for IrrigationSchedule class
+// ----------------------------------------
 IrrigationSchedule::IrrigationSchedule()
 {
     startTime = 0;
@@ -67,10 +69,10 @@ int IrrigationSchedule::getStartTimeMinutes() const
     return startTime % 60;
 }
 
-// Get the number of channels
-int IrrigationSchedule::getNumberOfChannels() const
+String IrrigationSchedule::getStartTimeString() const
 {
-    return irrigationChannelNumber;
+    String startTimeString = (getStartTimeHours() < 10 ? "0" : "") + String(getStartTimeHours()) + ":" + (getStartTimeMinutes() < 10 ? "0" : "") + String(getStartTimeMinutes());
+    return startTimeString;
 }
 
 // Get channel duration
@@ -117,8 +119,13 @@ int IrrigationSchedule::getWeight() const
     return weight;
 }
 
+// -----------------------------------------
 // Constructor for IrrigationSchedules class
-IrrigationSchedules::IrrigationSchedules(const std::vector<int> &pins)
+// -----------------------------------------
+IrrigationSchedules::IrrigationSchedules()
+{}
+
+void IrrigationSchedules::setPins(const std::vector<int> &pins)
 {
     int i = 0;
     for (int pin : pins)
@@ -150,6 +157,12 @@ void IrrigationSchedules::addSchedule(IrrigationSchedule schedule)
 void IrrigationSchedules::updateSchedule(int index, IrrigationSchedule schedule)
 {
     schedules[index] = schedule;
+}
+
+// Get the number of channels
+int IrrigationSchedules::getNumberOfChannels() const
+{
+    return irrigationChannelNumber;
 }
 
 // Get the number of schedules

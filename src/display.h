@@ -30,9 +30,6 @@ private:
     void HandleTimeouts(int elapsed);
     void DisplayStatus(int animation);
     void DisplayBigNumber(int row, int column, int num, bool colon = false);
-    void DisplayMenu(int dispRow, int l1, int l2, int l3);
-    void DisplayMenu(int dispRow, String menuItems[], int menuItemsCount);
-    void DisplayMenu1(int dispRow);
     void DisplayWifiStatus(int dispRow);
     String LongToString(long value, int digits);
 };

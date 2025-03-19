@@ -201,7 +201,7 @@ void Display::DisplayText()
     }
 
     unsigned long elapsed = (millis() - displayLastActivity) * 4 / 1000;
-    DisplayDimm(250 - elapsed > 50 ? 250 - elapsed : 50);
+    DisplayDimm(250 - elapsed > 10 ? 250 - elapsed : 10);
 
     displayLastUpdate = millis();
     HandleTimeouts(DISPLAY_LAST_UPDATE_INTERVAL);

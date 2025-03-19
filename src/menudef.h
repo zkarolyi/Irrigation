@@ -12,20 +12,11 @@ MENU_SCREEN(mainScreen, mainItems,
             ITEM_SUBMENU("Settings", settingsScreen),
             ITEM_COMMAND("Exit Menu", exitMenuCallback));
 
-// Manual control submenu
-MENU_SCREEN(manualScreen, manualItems,
-            ITEM_COMMAND_INT("CH 1", 0, toggleChannel),
-            ITEM_COMMAND_INT("CH 2", 1, toggleChannel),
-            ITEM_COMMAND_INT("CH 3", 2, toggleChannel),
-            ITEM_COMMAND_INT("CH 4", 3, toggleChannel),
-            ITEM_COMMAND_INT("CH 5", 4, toggleChannel),
-            ITEM_COMMAND_INT("CH 6", 5, toggleChannel),
-            ITEM_COMMAND_INT("CH 7", 6, toggleChannel),
-            ITEM_COMMAND_INT("CH 8", 7, toggleChannel),
-            ITEM_COMMAND_INT("All off", -1, toggleChannel));
+MenuScreen *manualScreen; // dinamically generated
 
-// Schedules submenu
 MenuScreen *schedulesScreen; // dinamically generated
+
+MenuScreen *scheduleViewScreen; // dinamically generated
 
 // Settings submenu
 MENU_SCREEN(settingsScreen, settingsItems,
@@ -34,10 +25,12 @@ MENU_SCREEN(settingsScreen, settingsItems,
                 backlightCallback,
                 WIDGET_RANGE(100, 10, 50, 250, "%dm", 1)),
             ITEM_COMMAND("Wifi Information", wifiInformationCallback),
-            ITEM_SUBMENU("Wifi Settings", wifiSettingsScreen));
+            ITEM_SUBMENU("Wifi Settings", wifiSettingsScreen),
+            ITEM_BACK("Back"));
 
 // Wifi settings submenu
 MENU_SCREEN(wifiSettingsScreen, wifiSettingsItems,
             ITEM_INPUT_CHARSET("SSID", ssidCharset, inputSsidCallback),
             ITEM_INPUT_CHARSET("Password", passwordCharset, inputPwdCallback),
-            ITEM_COMMAND("Connect", commandWifiCallback));
+            ITEM_COMMAND("Connect", commandWifiCallback),
+            ITEM_BACK("Cancel"));

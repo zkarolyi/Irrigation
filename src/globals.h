@@ -3,9 +3,13 @@
 
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
+#include <Irrigation.h>
 
 extern bool isMenuActive;
 
+extern std::vector<int> relayPins;
+
+extern IrrigationSchedules schedules;
 extern bool irrigationScheduleEnabled;
 extern int displayNetworkActivity;
 extern int displayOutChange;

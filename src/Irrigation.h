@@ -42,7 +42,8 @@ public:
     int getStartTimeHours() const;
     // Method to get the start time of the schedule in minutes
     int getStartTimeMinutes() const;
-    int getNumberOfChannels() const;
+    // Method to get the start time of the schedule as a string
+    String getStartTimeString() const;
     // Method to get the duration of a channel in the schedule
     int getChannelDuration(int channel) const;
     // Method to set start time of the schedule
@@ -67,13 +68,17 @@ class IrrigationSchedules
 {
 public:
     // Constructor to initialize relay pins
-    IrrigationSchedules(const std::vector<int> &pins);
+    IrrigationSchedules();
+    // Method to set the relay pins
+    void setPins(const std::vector<int> &pins);
     // Method to get the relay pin for a given channel
     int getPin(int channel) const;
     // Method to add a schedule to the list
     void addSchedule(IrrigationSchedule schedule);
     // Mothod to update a schedule in the list
     void updateSchedule(int index, IrrigationSchedule schedule);
+    // Method to get the number of channels in the schedule
+    int getNumberOfChannels() const;
     // Method to get the number of schedules in the list
     int getNumberOfSchedules() const;
     // Method to get a schedule from the list

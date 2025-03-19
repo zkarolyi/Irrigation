@@ -66,23 +66,14 @@
                     </div>
                     <div>
                         <select id="daysToRun" name="daysToRun">
-                            <option value="0"${dTR0}>Sunday</option>
-                            <option value="1"${dTR1}>Monday</option>
-                            <option value="2"${dTR2}>Tuesday</option>
-                            <option value="3"${dTR3}>Wednesday</option>
-                            <option value="4"${dTR4}>Thursday</option>
-                            <option value="5"${dTR5}>Friday</option>
-                            <option value="6"${dTR6}>Saturday</option>
-                            <option value="7"${dTR7}>All</option>
-                            <option value="8"${dTR8}>Odd</option>
-                            <option value="9"${dTR9}>Even</option>
-                            <option value="10"${dTR10}>Every3days</option>
-                            <option value="11"${dTR11}>Every4days</option>
-                            <option value="12"${dTR12}>Every5days</option>
-                            <option value="13"${dTR13}>Every6days</option>
-                            <option value="14"${dTR14}>Every7days</option>
-                            <option value="15"${dTR15}>Every8days</option>
-                            <option value="16"${dTR16}>Every9days</option>
+                            <option value="0"${dTR0}>All</option>
+                            <option value="1"${dTR1}>Odd</option>
+                            <option value="2"${dTR2}>Even</option>
+                            <option value="3"${dTR3}>Every3days</option>
+                            <option value="4"${dTR4}>Every4days</option>
+                            <option value="5"${dTR5}>Every5days</option>
+                            <option value="6"${dTR6}>Every6days</option>
+                            <option value="7"${dTR7}>Every7days</option>
                         </select>
                     </div>
                 </div>

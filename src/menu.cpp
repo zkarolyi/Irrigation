@@ -39,6 +39,11 @@ void commandCallback()
     Serial.println("Callback");
 }
 
+void commandAddScheduleCallback()
+{
+    Serial.println("Add schedule");
+}
+
 Menu::Menu()
     : lcdAdapter(new LiquidCrystal_I2C(DISPLAY_ADDRESS, DISPLAY_COLUMNS, DISPLAY_LINES)),
       renderer(CharacterDisplayRenderer(&lcdAdapter, DISPLAY_COLUMNS, DISPLAY_LINES, 0x7E, 0x7F, NULL, NULL)),
@@ -49,7 +54,38 @@ Menu::Menu()
     Serial.println("Menu initialized");
 }
 
-void Menu::GenerateIrrigationSubmenu(int numberOfSchedules)
+void Menu::GenerateManualScreen(){
+    // Clean up old manualScreen and its items if they exist
+    if (manualScreen != nullptr)
+    {
+        Serial.println("Deleting old manualScreen");
+        int i = 0;
+        MenuItem *item;
+        while ((item = manualScreen->getItemAt(i)) != nullptr)
+        {
+            Serial.printf("Deleting item %d\n", i);
+            delete item;
+            i++;
+        }
+        delete manualScreen;
+    }
+
+    int numberOfChannels = schedules.getNumberOfChannels();
+    int ch = 0;
+    // Allocate memory dynamically for the items array
+    MenuItem **items = new MenuItem *[numberOfChannels + 3];
+    for (int i = 0; i < numberOfChannels; i++)
+    {
+        String itemName = "Ch " + String(i + 1);
+        items[ch++] = new ItemCommandInt(strdup(itemName.c_str()), i, toggleChannel);
+    }
+    items[ch++] = new ItemCommandInt("All off", -1, toggleChannel);
+    items[ch++] = new ItemBack("Back");
+    items[ch++] = nullptr;
+    manualScreen = new MenuScreen(items);
+}
+
+void Menu::GenerateIrrigationSubmenu()
 {
     // Clean up old schedulesScreen and its items if they exist
     if (schedulesScreen != nullptr)
@@ -66,54 +102,59 @@ void Menu::GenerateIrrigationSubmenu(int numberOfSchedules)
         delete schedulesScreen;
     }
 
+    int numberOfSchedules = schedules.getNumberOfSchedules();
+
     // Allocate memory dynamically for the items array
-    MenuItem **items = new MenuItem *[numberOfSchedules + 1];
+    MenuItem **items = new MenuItem *[numberOfSchedules + 3];
     for (int i = 0; i < numberOfSchedules; i++)
     {
-        String itemName = "Schedule " + String(i + 1);
-        items[i] = new MenuItem(strdup(itemName.c_str()));
+        String itemName = String(i + 1) + "," + schedules.getSchedule(i).getStartTimeString() + "-" + IrrigationDaysToRunToString(schedules.getSchedule(i).getDaysToRun());
+        // items[i] = new MenuItem(strdup(itemName.c_str()));
+        items[i] = new ItemCommandInt(strdup(itemName.c_str()), i, commandScheduleSelectCallback);
     }
 
-    items[numberOfSchedules] = nullptr;
-
-    // Delete the old schedulesScreen if it exists to avoid memory leaks
-    // if (schedulesScreen != nullptr)
-    // {
-    //     delete schedulesScreen;
-    // }
-
+    items[numberOfSchedules] = new ItemCommand("Add schedule", commandAddScheduleCallback);
+    items[numberOfSchedules + 1] = new ItemBack("Back");
+    items[numberOfSchedules + 2] = nullptr;
     schedulesScreen = new MenuScreen(items);
-
-    // Free the dynamically allocated memory for items array
-    // delete[] items;
 }
 
-// // Function to dynamically create a menu based on a parameter string list
-// MenuScreen *createMenu(const std::vector<std::string> &itemNames)
-// {
-//     // Create a vector to hold the MenuItem pointers
-//     std::vector<MenuItem *> items;
+void Menu::GenerateScheduleViewSubmenu(int scheduleIndex)
+{
+    Serial.printf("Generating schedule view for schedule %d\n", scheduleIndex);
+    // Clean up old scheduleViewScreen and its items if they exist
+    if (scheduleViewScreen != nullptr)
+    {
+        Serial.println("Deleting old scheduleViewScreen");
+        int i = 0;
+        MenuItem *item;
+        while ((item = scheduleViewScreen->getItemAt(i)) != nullptr)
+        {
+            Serial.printf("Deleting item %d\n", i);
+            delete item;
+            i++;
+        }
+        delete scheduleViewScreen;
+    }
 
-//     // Iterate over the item names and create MenuItem objects
-//     for (const auto &name : itemNames)
-//     {
-//         items.push_back(new MenuItem(name.c_str()));
-//     }
-
-//     // Add a nullptr to the end of the items array
-//     items.push_back(nullptr);
-
-//     // Create a MenuScreen with the items array
-//     MenuScreen *screen = new MenuScreen(items.data());
-
-//     return screen;
-// }
-
-// // Example usage
-// https://github.com/forntoh/LcdMenu/issues/291
-//     // Example item names
-//     std::vector<std::string> itemNames = {"Test1", "Test2"};
-//     // Create the menu screen
-//     MenuScreen* screen = createMenu(itemNames);
-//     // Add the screen to the menu
-//     menu.addScreen(screen);
+    IrrigationSchedule schedule = schedules.getSchedule(scheduleIndex);
+    int numberOfChannels = schedules.getNumberOfChannels();
+    // Allocate memory dynamically for the items array
+    MenuItem **items = new MenuItem *[6 + numberOfChannels];
+    int ch = 0;
+    items[ch++] = new MenuItem(strdup(schedule.getStartTimeString().c_str()));
+    items[ch++] = new MenuItem(strdup(IrrigationDaysToRunToString(schedule.getDaysToRun()).c_str()));
+    items[ch++] = new MenuItem(strdup((String(schedule.getWeight()) + "%" ).c_str()));
+    for (int i = 0; i < numberOfChannels; i++)
+    {
+        String itemName = String(i + 1) + ": " + String(schedule.getChannelDuration(i)) + " min";
+        Serial.println(itemName);
+        items[ch++] = new MenuItem(strdup(itemName.c_str()));
+    }
+    items[ch++] = new ItemCommandInt("Edit", scheduleIndex , commandScheduleEditCallback);
+    items[ch++] = new ItemBack("Back");
+    items[ch++] = nullptr;
+    Serial.println("Creating scheduleViewScreen");
+    scheduleViewScreen = new MenuScreen(items);
+    scheduleViewScreen->setParent(schedulesScreen);
+}

@@ -26,11 +26,13 @@ class Menu
 {
   public:
     Menu();
-    void GenerateIrrigationSubmenu(int numberOfSchedules);
     LcdMenu menu;
     SimpleRotaryAdapter rotaryInput;
     CharacterDisplayRenderer renderer;
     SimpleRotary encoder;
+    void GenerateManualScreen();
+    void GenerateIrrigationSubmenu();
+    void GenerateScheduleViewSubmenu(int scheduleIndex);
   private:
     LiquidCrystal_I2CAdapter lcdAdapter;
 };
@@ -45,11 +47,17 @@ extern void inputPwdCallback(char *value);
 extern void commandWifiCallback();
 extern void wifiInformationCallback();
 extern void backlightCallback(int value);
+extern void commandAddScheduleCallback();
+extern void commandScheduleSelectCallback(int scheduleIndex);
+extern void commandScheduleEditCallback(int scheduleIndex);
+extern void commandScheduleDeleteCallback(int scheduleIndex);
+extern void commandScheduleSaveCallback(int scheduleIndex);
 
 // Screens
 extern MenuScreen* mainScreen;
 extern MenuScreen* manualScreen;
 extern MenuScreen* schedulesScreen;
+extern MenuScreen* scheduleViewScreen;
 extern MenuScreen* settingsScreen;
 extern MenuScreen* wifiSettingsScreen;
 
