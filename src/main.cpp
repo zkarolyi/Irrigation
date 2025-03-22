@@ -100,7 +100,8 @@ bool InitializeWiFi()
   return false;
 }
 
-void InitializeWebServer(){
+void InitializeWebServer()
+{
   server.on("/", handle_OnRoot);
   server.on("/ToggleSwitch", HTTP_GET, handle_OnToggleSwitch);
   server.on("/Schedule", HTTP_GET, handle_OnGetSchedule);
@@ -185,6 +186,7 @@ void SaveSchedules(IrrigationSchedules &schedules)
   }
 
   file.close();
+  menu->GenerateIrrigationSubmenu();
 }
 
 void InitFS()
@@ -299,10 +301,10 @@ void handle_OnGetSchedule()
     {
       body.replace("${sTM" + String(i) + "}", "");
     }
-    IrrigationDaysToRun dtr = IrrigationDaysToRun::All;
-    for (int i = (int)IrrigationDaysToRun::All; i <= (int)IrrigationDaysToRun::Every7days; i++)
+    int dtr = 0;
+    for (int i = 0; i <= daysToRunValuesSize; i++)
     {
-      body.replace("${dTR" + String(i) + "}", dtr == (IrrigationDaysToRun)i ? " selected" : "");
+      body.replace("${dTR" + String(i) + "}", dtr == i ? " selected" : "");
     }
     int weight = 100;
     for (int i = 50; i <= 150; i = i + 25)
@@ -331,7 +333,7 @@ void handle_OnGetSchedule()
     }
     int dtr = (int)sch.getDaysToRun();
     screen->DisplayMessage("R:" + String(dtr), true, false);
-    for (int i = (int)IrrigationDaysToRun::All; i <= (int)IrrigationDaysToRun::Every7days; i++)
+    for (int i = 0; i <= daysToRunValuesSize; i++)
     {
       body.replace("${dTR" + String(i) + "}", dtr == i ? " selected" : "");
     }
@@ -385,7 +387,7 @@ void handle_OnSetSchedule()
   {
     currSchedule.addChannelDuration(i, server.arg("duration" + String(i + 1)).toInt());
   }
-  currSchedule.setDaysToRun((IrrigationDaysToRun)server.arg("daysToRun").toInt());
+  currSchedule.setDaysToRun(server.arg("daysToRun").toInt());
   currSchedule.setWeight(server.arg("weight").toInt());
 
   if (id >= 0 && id < schedules.getNumberOfSchedules())
@@ -462,12 +464,13 @@ void handle_OnRoot()
       if (!digitalRead(schedules.getPin(i)))
       {
         Serial.println("Channel " + String(i + 1) + " is on");
-        body.replace("{{SetActive}}", "document.getElementById('ch" + String(i+1) + "').classList.add('button-check');");
+        body.replace("{{SetActive}}", "document.getElementById('ch" + String(i + 1) + "').classList.add('button-check');");
       }
       file.close();
     }
-
-  } else {
+  }
+  else
+  {
     body = "Failed to open file";
   }
 
@@ -671,7 +674,8 @@ void loop()
   {
     screen->DisplayText();
     byte rotation = menu->encoder.rotate();
-    if(rotation != 0x00){
+    if (rotation != 0x00)
+    {
       screen->DisplayActivate();
     }
     byte pushed = menu->encoder.push();
@@ -688,7 +692,14 @@ void loop()
   }
 }
 
-// Callback functions
+// ###################################################################################
+// ###      ####      ###  ########  ########       ####      ####      ####  ####  ##
+// ##  ####  ##  ####  ##  ########  ########  ####  ##  ####  ##  ####  ###  ##  ####
+// ##  ########        ##  ########  ########       ###        ##  #########    ######
+// ##  ########  ####  ##  ########  ########  ####  ##  ####  ##  #########  #  #####
+// ##  ####  ##  ####  ##  ########  ########  ####  ##  ####  ##  ####  ###  ##  ####
+// ###      ###  ####  ##        ##        ##       ###  ####  ###      ####  ####  ##
+// ###################################################################################
 
 void exitMenuCallback()
 {
@@ -753,21 +764,21 @@ void toggleChannel(int channel)
   exitMenuCallback();
 }
 
-
-void commandScheduleSelectCallback(int scheduleIndex){
+void commandScheduleSelectCallback(int scheduleIndex)
+{
   Serial.printf("Selected schedule %d\n", scheduleIndex);
   menu->GenerateScheduleViewSubmenu(scheduleIndex);
   menu->menu.setScreen(scheduleViewScreen);
 }
 
-void commandScheduleEditCallback(int scheduleIndex){
+void commandScheduleEditCallback(int scheduleIndex)
+{
   Serial.printf("Edit schedule %d\n", scheduleIndex);
+  menu->GenerateScheduleEditSubmenu(scheduleIndex);
+  menu->menu.setScreen(scheduleEditScreen);
 }
 
-void commandScheduleDeleteCallback(int scheduleIndex){
+void commandScheduleDeleteCallback(int scheduleIndex)
+{
   Serial.printf("Delete schedule %d\n", scheduleIndex);
-}
-
-void commandScheduleSaveCallback(int scheduleIndex){
-  Serial.printf("Save schedule %d\n", scheduleIndex);
 }

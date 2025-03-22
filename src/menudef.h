@@ -18,6 +18,8 @@ MenuScreen *schedulesScreen; // dinamically generated
 
 MenuScreen *scheduleViewScreen; // dinamically generated
 
+MenuScreen *scheduleEditScreen; // dinamically generated
+
 // Settings submenu
 MENU_SCREEN(settingsScreen, settingsItems,
             ITEM_WIDGET(

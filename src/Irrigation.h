@@ -13,20 +13,17 @@ const int irrigationChannelNumber = 8;
 // Days to run on (0-6, all, odd, even, interval (1-10))
 // Channel durations (0-60 minutes in 1 minute increments)
 
-// Enum to represent the days to run on
-enum class IrrigationDaysToRun
-{
-    All,
-    Odd,
-    Even,
-    Every3days,
-    Every4days,
-    Every5days,
-    Every6days,
-    Every7days
-};
+static const char *const daysToRunValues[] = {
+    "All",
+    "Odd",
+    "Even",
+    "Every3days",
+    "Every4days",
+    "Every5days",
+    "Every6days",
+    "Every7days"};
 
-String IrrigationDaysToRunToString(IrrigationDaysToRun day);
+static const int daysToRunValuesSize = sizeof(daysToRunValues) / sizeof(daysToRunValues[0]);
 
 // Class to represent an irrigation schedule
 class IrrigationSchedule
@@ -49,17 +46,18 @@ public:
     // Method to set start time of the schedule
     void setStartTime(int startHours, int startMinutes);
     // Method to set days to run on
-    void setDaysToRun(IrrigationDaysToRun daysToRun);
+    void setDaysToRun(int daysToRun);
     // Method to get days to run on
-    IrrigationDaysToRun getDaysToRun() const;
+    int getDaysToRun() const;
     // Method to set weight of the schedule
     void setWeight(int weight);
     // Method to get weight of the schedule
     int getWeight() const;
+
 private:
     int startTime;
     int duration[irrigationChannelNumber];
-    IrrigationDaysToRun daysToRun;
+    int daysToRun;
     int weight;
 };
 
@@ -87,6 +85,7 @@ public:
     void removeSchedule(int index);
     // Method to remove all schedules
     void clearSchedules();
+
 private:
     std::map<int, IrrigationSchedule> schedules;
     int irrigationRelayPins[irrigationChannelNumber];

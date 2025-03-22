@@ -33,8 +33,10 @@ class Menu
     void GenerateManualScreen();
     void GenerateIrrigationSubmenu();
     void GenerateScheduleViewSubmenu(int scheduleIndex);
+    void GenerateScheduleEditSubmenu(int scheduleIndex);
   private:
     LiquidCrystal_I2CAdapter lcdAdapter;
+    void DeleteScreen(MenuScreen *screen);
 };
 
 // Callback functions
@@ -58,6 +60,7 @@ extern MenuScreen* mainScreen;
 extern MenuScreen* manualScreen;
 extern MenuScreen* schedulesScreen;
 extern MenuScreen* scheduleViewScreen;
+extern MenuScreen* scheduleEditScreen;
 extern MenuScreen* settingsScreen;
 extern MenuScreen* wifiSettingsScreen;
 

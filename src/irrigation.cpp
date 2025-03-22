@@ -1,31 +1,5 @@
 #include "Irrigation.h"
 
-// Convert IrrigationDaysToRun enum to a string
-String IrrigationDaysToRunToString(IrrigationDaysToRun day)
-{
-    switch (day)
-    {
-    case IrrigationDaysToRun::All:
-        return "All";
-    case IrrigationDaysToRun::Odd:
-        return "Odd";
-    case IrrigationDaysToRun::Even:
-        return "Even";
-    case IrrigationDaysToRun::Every3days:
-        return "Every3days";
-    case IrrigationDaysToRun::Every4days:
-        return "Every4days";
-    case IrrigationDaysToRun::Every5days:
-        return "Every5days";
-    case IrrigationDaysToRun::Every6days:
-        return "Every6days";
-    case IrrigationDaysToRun::Every7days:
-        return "Every7days";
-    default:
-        return "Unknown";
-    }
-}
-
 // ----------------------------------------
 // Constructor for IrrigationSchedule class
 // ----------------------------------------
@@ -36,7 +10,7 @@ IrrigationSchedule::IrrigationSchedule()
     {
         duration[i] = 0;
     }
-    daysToRun = IrrigationDaysToRun::All;
+    daysToRun = 0;
     weight = 100;
 }
 
@@ -92,13 +66,13 @@ void IrrigationSchedule::setStartTime(int startHours, int startMinutes)
 }
 
 // Set days to run
-void IrrigationSchedule::setDaysToRun(IrrigationDaysToRun daysToRun)
+void IrrigationSchedule::setDaysToRun(int daysToRun)
 {
     this->daysToRun = daysToRun;
 }
 
 // Get days to run
-IrrigationDaysToRun IrrigationSchedule::getDaysToRun() const
+int IrrigationSchedule::getDaysToRun() const
 {
     return daysToRun;
 }
@@ -211,7 +185,7 @@ String convertToJson(const IrrigationSchedules &schedules)
         scheduleObject["startTime"] = schedule.getStartTime();
         scheduleObject["startTimeString"] = String(schedule.getStartTimeHours()) + ":" + String(schedule.getStartTimeMinutes());
         scheduleObject["daysToRun"] = static_cast<int>(schedule.getDaysToRun());
-        scheduleObject["daysToRunString"] = IrrigationDaysToRunToString(schedule.getDaysToRun());
+        scheduleObject["daysToRunString"] = daysToRunValues[schedule.getDaysToRun()];
         scheduleObject["weight"] = schedule.getWeight();
         
         JsonArray channelDurationsArray = scheduleObject.createNestedArray("channelDurations");
@@ -246,7 +220,7 @@ bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules)
         IrrigationSchedule schedule;
         int startTime = scheduleObject["startTime"];
         schedule.setStartTime(startTime / 60, startTime % 60);
-        schedule.setDaysToRun(static_cast<IrrigationDaysToRun>(scheduleObject["daysToRun"].as<int>()));
+        schedule.setDaysToRun(scheduleObject["daysToRun"].as<int>());
         schedule.setWeight(scheduleObject["weight"]);
         
         JsonArray channelDurationsArray = scheduleObject["channelDurations"].as<JsonArray>();

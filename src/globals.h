@@ -13,6 +13,7 @@ extern IrrigationSchedules schedules;
 extern bool irrigationScheduleEnabled;
 extern int displayNetworkActivity;
 extern int displayOutChange;
+extern void SaveSchedules(IrrigationSchedules &schedules);
 
 extern int rotaryEncoderPosition;
 extern int rotaryEncoderButtonDuration;
