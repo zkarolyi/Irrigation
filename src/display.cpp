@@ -201,6 +201,16 @@ void Display::DisplayText()
     }
 
     unsigned long elapsed = (millis() - displayLastActivity) * 4 / 1000;
+    if (elapsed > 50)
+    {
+        for (int i = 0; i < DISPLAY_LINES - 2; i++)
+        {
+            displayLinesText[i] = displayLinesText[i + 1];
+            displayLinesPosition[i] = displayLinesPosition[i + 1];
+        }
+        displayLinesText[DISPLAY_LINES - 2] = "";
+        displayLastActivity = millis();
+    }
     DisplayDimm(250 - elapsed > 10 ? 250 - elapsed : 10);
 
     displayLastUpdate = millis();

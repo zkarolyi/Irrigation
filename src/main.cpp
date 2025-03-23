@@ -778,7 +778,47 @@ void commandScheduleEditCallback(int scheduleIndex)
   menu->menu.setScreen(scheduleEditScreen);
 }
 
+void commandScheduleSaveCallback(int scheduleIndex)
+{
+    IrrigationSchedule schedule = scheduleIndex < 0 ? IrrigationSchedule() : schedules.getSchedule(scheduleIndex);
+
+    int numberOfChannels = schedules.getNumberOfChannels();
+
+    int hour = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int, int> *>(scheduleEditScreen->getItemAt(0))->getWidgetAt(0))->getValue();
+    int minute = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int, int> *>(scheduleEditScreen->getItemAt(0))->getWidgetAt(1))->getValue();
+    int daysToRun = static_cast<WidgetList<const char *> *>(static_cast<ItemWidget<uint8_t> *>(scheduleEditScreen->getItemAt(1))->getWidgetAt(0))->getValue();
+    int weight = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<uint8_t> *>(scheduleEditScreen->getItemAt(2))->getWidgetAt(0))->getValue();
+    schedule.setStartTime(hour, minute);
+    schedule.setDaysToRun(daysToRun);
+    schedule.setWeight(weight);
+    Serial.printf("time: %02d:%02d, days: %d, weight: %d\n", hour, minute, daysToRun, weight);
+    for (int i = 0; i < numberOfChannels; i++)
+    {
+        int duration = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int> *>(scheduleEditScreen->getItemAt(3 + i))->getWidgetAt(0))->getValue();
+        schedule.addChannelDuration(i, duration);
+        Serial.printf("Channel %d duration: %d\n", i, duration);
+    }
+
+    if (scheduleIndex < 0)
+    {
+        schedules.addSchedule(schedule);
+    }
+    else
+    {
+        schedules.updateSchedule(scheduleIndex, schedule);
+    }
+    SaveSchedules(schedules);
+
+    menu->menu.process(BACK);
+    exitMenuCallback();
+    Serial.printf("Save schedule %d\n", scheduleIndex);
+}
+
 void commandScheduleDeleteCallback(int scheduleIndex)
 {
-  Serial.printf("Delete schedule %d\n", scheduleIndex);
+    schedules.removeSchedule(scheduleIndex);
+    SaveSchedules(schedules);
+    menu->menu.process(BACK);
+    exitMenuCallback();
+    Serial.printf("Delete schedule %d\n", scheduleIndex);
 }

@@ -3,7 +3,8 @@
 
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
-#include <Irrigation.h>
+#include "menu.h"
+#include "Irrigation.h"
 
 extern bool isMenuActive;
 
