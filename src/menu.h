@@ -5,11 +5,9 @@
 #include <LiquidCrystal_I2C.h>
 #include <LcdMenu.h>
 #include <MenuScreen.h>
-#include <ItemList.h>
 #include <ItemWidget.h>
 #include <ItemSubMenu.h>
 #include <ItemToggle.h>
-#include <ItemToggleInt.h>
 #include <ItemCommandInt.h>
 #include <ItemCommand.h>
 #include <ItemInputCharset.h>

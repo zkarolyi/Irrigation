@@ -302,7 +302,7 @@ void handle_OnGetSchedule()
       body.replace("${sTM" + String(i) + "}", "");
     }
     int dtr = 0;
-    for (int i = 0; i <= daysToRunValuesSize; i++)
+    for (int i = 0; i <= daysToRunValues.size(); i++)
     {
       body.replace("${dTR" + String(i) + "}", dtr == i ? " selected" : "");
     }
@@ -333,7 +333,7 @@ void handle_OnGetSchedule()
     }
     int dtr = (int)sch.getDaysToRun();
     screen->DisplayMessage("R:" + String(dtr), true, false);
-    for (int i = 0; i <= daysToRunValuesSize; i++)
+    for (int i = 0; i <= daysToRunValues.size(); i++)
     {
       body.replace("${dTR" + String(i) + "}", dtr == i ? " selected" : "");
     }

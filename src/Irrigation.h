@@ -13,7 +13,7 @@ const int irrigationChannelNumber = 8;
 // Days to run on (0-6, all, odd, even, interval (1-10))
 // Channel durations (0-60 minutes in 1 minute increments)
 
-static const char *const daysToRunValues[] = {
+const std::vector<const char*> daysToRunValues = {
     "All",
     "Odd",
     "Even",
@@ -22,8 +22,6 @@ static const char *const daysToRunValues[] = {
     "Every5days",
     "Every6days",
     "Every7days"};
-
-static const int daysToRunValuesSize = sizeof(daysToRunValues) / sizeof(daysToRunValues[0]);
 
 // Class to represent an irrigation schedule
 class IrrigationSchedule
