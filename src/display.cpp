@@ -189,6 +189,7 @@ void Display::DisplayActivate(int timeout)
 {
     displayTimeout = timeout;
     displayLastActivity = millis();
+    displayLastScroll = millis();
 }
 
 void Display::DisplayText()
@@ -198,8 +199,7 @@ void Display::DisplayText()
         return;
     }
 
-    unsigned long elapsed = (millis() - displayLastActivity) * 4 / 1000;
-    if (elapsed > 50)
+    if (millis() - displayLastScroll > 10000)
     {
         for (int i = 0; i < DISPLAY_LINES - 2; i++)
         {
@@ -207,18 +207,22 @@ void Display::DisplayText()
             displayLinesPosition[i] = displayLinesPosition[i + 1];
         }
         displayLinesText[DISPLAY_LINES - 2] = "";
-        displayLastActivity = millis();
+        displayLastScroll = millis();
     }
-    DisplayDimm(250 - elapsed > 10 ? 250 - elapsed : 10);
+    unsigned long elapsed = (millis() - displayLastActivity) / 1000; // Convert to seconds
+    DisplayDimm(elapsed < 60 ? 250 - elapsed * 4 : 10);
 
     displayLastUpdate = millis();
     HandleTimeouts(DISPLAY_LAST_UPDATE_INTERVAL);
 
     DateTime now;
-    if (rtc.begin() && !rtc.lostPower()) {
+    if (rtc.begin() && !rtc.lostPower())
+    {
         now = rtc.now();
         timeSynced = now.isValid();
-    } else {
+    }
+    else
+    {
         timeSynced = false;
     }
 

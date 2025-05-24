@@ -25,6 +25,7 @@ private:
     long displayTimeout = 0;
     unsigned long displayLastUpdate = 0;
     unsigned long displayLastActivity = 0;
+    unsigned long displayLastScroll = 0;
     bool clearingNeeded = false;
 
     void HandleTimeouts(int elapsed);
