@@ -12,11 +12,14 @@
 #include "display.h"
 #include "menu.h"
 using namespace std;
+#include <HTTPClient.h>
 
 float temperature, humidity, pressure, altitude;
 
 const char *ssid;
 const char *password;
+
+RTC_DS3231 rtc;
 
 WebServer server(80);
 bool wifiConnected = false;
@@ -60,6 +63,84 @@ void InitializeSchedules()
   convertFromJson(json, schedules);
 }
 
+// time_t getLastSundayUTC(int year, int month, int hour)
+// {
+//   struct tm t = {};
+//   t.tm_year = year - 1900;
+//   t.tm_mon = month - 1;
+//   t.tm_mday = 31;
+//   t.tm_hour = hour;
+//   t.tm_min = 0;
+//   t.tm_sec = 0;
+
+//   time_t ts = mktime(&t);
+//   t = *gmtime(&ts); // Use gmtime to treat as UTC
+
+//   while (t.tm_wday != DST_START_WEEKDAY)
+//   {
+//     ts -= 24 * 60 * 60;
+//     t = *gmtime(&ts);
+//   }
+
+//   // Serial.printf("Last Sunday of %d-%02d at %02d:00 UTC is %s", year, month, hour, asctime(&t));
+//   return ts;
+// }
+
+// bool DaylightSavingActive()
+// {
+//   time_t now;
+//   time(&now);
+
+//   struct tm *utc = gmtime(&now);
+//   int year = utc->tm_year + 1900;
+
+//   time_t dstStart = getLastSundayUTC(year, DST_START_MONTH, DST_START_HOUR);
+//   time_t dstEnd = getLastSundayUTC(year, DST_END_MONTH, DST_END_HOUR);
+
+//   bool isDstActive = (now >= dstStart && now < dstEnd);
+//   // Serial.printf("DST active: %s\n", isDstActive ? "Yes" : "No");
+
+//   return isDstActive;
+// }
+
+void UpdateTimeZone()
+{
+  setenv("TZ", tz, 1);
+  tzset();
+  Serial.printf("Időzóna beállítva: %s\n", tz);
+  // int daylight = DaylightSavingActive() ? daylightOffset_sec : 0;
+
+  // char cst[17] = {0};
+  // char cdt[17] = "DST";
+  // char tz[33] = {0};
+
+  // if (gmtOffset_sec % 3600)
+  // {
+  //   sprintf(cst, "UTC%ld:%02u:%02u", gmtOffset_sec / 3600, abs((gmtOffset_sec % 3600) / 60), abs(gmtOffset_sec % 60));
+  // }
+  // else
+  // {
+  //   sprintf(cst, "UTC%ld", gmtOffset_sec / 3600);
+  // }
+  // if (daylight != 3600)
+  // {
+  //   long tz_dst = gmtOffset_sec - daylight;
+  //   if (tz_dst % 3600)
+  //   {
+  //     sprintf(cdt, "DST%ld:%02u:%02u", tz_dst / 3600, abs((tz_dst % 3600) / 60), abs(tz_dst % 60));
+  //   }
+  //   else
+  //   {
+  //     sprintf(cdt, "DST%ld", tz_dst / 3600);
+  //   }
+  // }
+  // sprintf(tz, "%s%s", cst, cdt);
+  // setenv("TZ", tz, 1);
+  // tzset();
+
+  // Serial.printf("Current TZ: %s\n", tz ? tz : "Not set");
+}
+
 bool InitializeWiFi()
 {
   screen->DisplayMessage("Connecting to ");
@@ -91,7 +172,7 @@ bool InitializeWiFi()
     wifiHostname = WiFi.getHostname();
     wifiMacAddress = WiFi.macAddress();
     wifiSsid = WiFi.SSID();
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    configTime(0, 0, ntpServer);
     InitializeWebServer();
     return true;
   }
@@ -159,6 +240,34 @@ void InitializeOTA()
                  else if (error == OTA_END_ERROR) screen->DisplayMessage("End Failed", false, true); });
 
   ArduinoOTA.begin();
+}
+
+void InitializeRTC()
+{
+  // RTC
+  if (!rtc.begin())
+  {
+    screen->DisplayMessage("Couldn't find RTC", true, true);
+    return;
+  }
+  rtc.disable32K();
+  rtc.disableAlarm(1);
+  rtc.disableAlarm(2);
+  if (!rtc.lostPower())
+  {
+    screen->DisplayMessage("RTC is powered", true, true);
+  }
+  else
+  {
+    screen->DisplayMessage("RTC lost power", true, true);
+  }
+}
+
+void displayRtc()
+{
+  DateTime now = rtc.now();
+  Serial.printf("%d, %04d-%02d-%02d %02d:%02d:%02d\n", now.dayOfTheWeek(), now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+  Serial.printf("%.2fºC\n", rtc.getTemperature());
 }
 
 // ##########################################
@@ -526,6 +635,35 @@ void handle_NotFound()
   server.send(404, "text/plain", "Page not found");
 }
 
+void handleTimer()
+{
+  if (timerTimeout-- <= 0)
+  {
+    Serial.println("Timer timeout reached");
+    timerTimeout = TIMER_TIMEOUT_INTERVAL;
+    UpdateTimeZone();
+    if (rtc.lostPower())
+    {
+      struct tm timeinfo;
+      if (getLocalTime(&timeinfo, 200))
+      {
+        screen->DisplayMessage("RTC lost power, setting time", true, true);
+        rtc.adjust(DateTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec));
+      }
+      else
+      {
+        screen->DisplayMessage("Failed to set RTC", true, true);
+        timerTimeout = 1000; // Retry in 1000 ms
+      }
+    }
+    else
+    {
+      displayRtc();
+    }
+  }
+}
+
 // ##################################################################################################
 // ##      ##       ###       ####      ###      ####      ###        ###      ###      ###  ####  ##
 // ####  ####  ####  ##  ####  #####  ####  ########  ####  #####  ########  ####  ####  ##    ##  ##
@@ -544,11 +682,14 @@ void ManageIrrigation()
   }
   irrigationLastCheck = millis();
 
-  time_t now;
-  struct tm timeinfo;
-  time(&now);
-  localtime_r(&now, &timeinfo);
-  int currentTime = (timeinfo.tm_hour * 3600) + (timeinfo.tm_min * 60) + timeinfo.tm_sec;
+  // time_t now;
+  // struct tm timeinfo;
+  // time(&now);
+  // localtime_r(&now, &timeinfo);
+  // int currentTime = (timeinfo.tm_hour * 3600) + (timeinfo.tm_min * 60) + timeinfo.tm_sec;
+
+  DateTime now = rtc.now();
+  int currentTime = (now.hour() * 3600) + (now.minute() * 60) + now.second();
 
   int channelToStart = -1;
   for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
@@ -622,6 +763,8 @@ void setup()
     screen->DisplayMessage("No wifi credentials", true, true);
   }
 
+  InitializeRTC();
+
   InitializeSchedules();
 
   Serial.println("Starting menu");
@@ -690,6 +833,7 @@ void loop()
     server.handleClient();
     ArduinoOTA.handle();
   }
+  handleTimer();
 }
 
 // ###################################################################################
@@ -780,45 +924,45 @@ void commandScheduleEditCallback(int scheduleIndex)
 
 void commandScheduleSaveCallback(int scheduleIndex)
 {
-    IrrigationSchedule schedule = scheduleIndex < 0 ? IrrigationSchedule() : schedules.getSchedule(scheduleIndex);
+  IrrigationSchedule schedule = scheduleIndex < 0 ? IrrigationSchedule() : schedules.getSchedule(scheduleIndex);
 
-    int numberOfChannels = schedules.getNumberOfChannels();
+  int numberOfChannels = schedules.getNumberOfChannels();
 
-    int hour = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int, int> *>(scheduleEditScreen->getItemAt(0))->getWidgetAt(0))->getValue();
-    int minute = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int, int> *>(scheduleEditScreen->getItemAt(0))->getWidgetAt(1))->getValue();
-    int daysToRun = static_cast<WidgetList<const char *> *>(static_cast<ItemWidget<uint8_t> *>(scheduleEditScreen->getItemAt(1))->getWidgetAt(0))->getValue();
-    int weight = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<uint8_t> *>(scheduleEditScreen->getItemAt(2))->getWidgetAt(0))->getValue();
-    schedule.setStartTime(hour, minute);
-    schedule.setDaysToRun(daysToRun);
-    schedule.setWeight(weight);
-    Serial.printf("time: %02d:%02d, days: %d, weight: %d\n", hour, minute, daysToRun, weight);
-    for (int i = 0; i < numberOfChannels; i++)
-    {
-        int duration = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int> *>(scheduleEditScreen->getItemAt(3 + i))->getWidgetAt(0))->getValue();
-        schedule.addChannelDuration(i, duration);
-        Serial.printf("Channel %d duration: %d\n", i, duration);
-    }
+  int hour = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int, int> *>(scheduleEditScreen->getItemAt(0))->getWidgetAt(0))->getValue();
+  int minute = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int, int> *>(scheduleEditScreen->getItemAt(0))->getWidgetAt(1))->getValue();
+  int daysToRun = static_cast<WidgetList<const char *> *>(static_cast<ItemWidget<uint8_t> *>(scheduleEditScreen->getItemAt(1))->getWidgetAt(0))->getValue();
+  int weight = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<uint8_t> *>(scheduleEditScreen->getItemAt(2))->getWidgetAt(0))->getValue();
+  schedule.setStartTime(hour, minute);
+  schedule.setDaysToRun(daysToRun);
+  schedule.setWeight(weight);
+  Serial.printf("time: %02d:%02d, days: %d, weight: %d\n", hour, minute, daysToRun, weight);
+  for (int i = 0; i < numberOfChannels; i++)
+  {
+    int duration = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int> *>(scheduleEditScreen->getItemAt(3 + i))->getWidgetAt(0))->getValue();
+    schedule.addChannelDuration(i, duration);
+    Serial.printf("Channel %d duration: %d\n", i, duration);
+  }
 
-    if (scheduleIndex < 0)
-    {
-        schedules.addSchedule(schedule);
-    }
-    else
-    {
-        schedules.updateSchedule(scheduleIndex, schedule);
-    }
-    SaveSchedules(schedules);
+  if (scheduleIndex < 0)
+  {
+    schedules.addSchedule(schedule);
+  }
+  else
+  {
+    schedules.updateSchedule(scheduleIndex, schedule);
+  }
+  SaveSchedules(schedules);
 
-    menu->menu.process(BACK);
-    exitMenuCallback();
-    Serial.printf("Save schedule %d\n", scheduleIndex);
+  menu->menu.process(BACK);
+  exitMenuCallback();
+  Serial.printf("Save schedule %d\n", scheduleIndex);
 }
 
 void commandScheduleDeleteCallback(int scheduleIndex)
 {
-    schedules.removeSchedule(scheduleIndex);
-    SaveSchedules(schedules);
-    menu->menu.process(BACK);
-    exitMenuCallback();
-    Serial.printf("Delete schedule %d\n", scheduleIndex);
+  schedules.removeSchedule(scheduleIndex);
+  SaveSchedules(schedules);
+  menu->menu.process(BACK);
+  exitMenuCallback();
+  Serial.printf("Delete schedule %d\n", scheduleIndex);
 }

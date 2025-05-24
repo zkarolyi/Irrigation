@@ -5,10 +5,13 @@
 #include <LiquidCrystal_I2C.h>
 #include "menu.h"
 #include "Irrigation.h"
+#include <RTClib.h>
 
 extern bool isMenuActive;
 
 extern std::vector<int> relayPins;
+
+extern RTC_DS3231 rtc;
 
 extern IrrigationSchedules schedules;
 extern bool irrigationScheduleEnabled;

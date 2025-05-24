@@ -25,8 +25,6 @@ byte bigNumbers[10][6] PROGMEM = {
     {0, 6, 2, 4, 4, 5}          // 9
 };
 
-struct tm timeinfo;
-
 // LCD instance
 LiquidCrystal_I2C lcd(DISPLAY_ADDRESS, DISPLAY_COLUMNS, DISPLAY_LINES);
 
@@ -216,8 +214,13 @@ void Display::DisplayText()
     displayLastUpdate = millis();
     HandleTimeouts(DISPLAY_LAST_UPDATE_INTERVAL);
 
-    struct tm timeinfo;
-    timeSynced = getLocalTime(&timeinfo, 20);
+    DateTime now;
+    if (rtc.begin() && !rtc.lostPower()) {
+        now = rtc.now();
+        timeSynced = now.isValid();
+    } else {
+        timeSynced = false;
+    }
 
     displayTimeout -= DISPLAY_LAST_UPDATE_INTERVAL;
 
@@ -263,10 +266,12 @@ void Display::DisplayText()
             lcd.clear();
         }
         if (timeSynced)
-            DisplayBigNumber(1, 2, timeinfo.tm_hour * 100 + timeinfo.tm_min, timeinfo.tm_sec % 2 == 0);
+        {
+            DisplayBigNumber(1, 2, now.hour() * 100 + now.minute(), now.second() % 2 == 0);
+        }
     }
     if (timeSynced)
-        DisplayStatus(timeinfo.tm_sec);
+        DisplayStatus(now.second());
 }
 
 void Display::DisplayMessage(String message, bool first, bool last)
