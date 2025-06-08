@@ -17,14 +17,14 @@ const unsigned long DISPLAY_LAST_UPDATE_INTERVAL = 300; // 300 milliseconds
 
 const unsigned long TIMER_TIMEOUT_INTERVAL = 1000 * 60 * 60; // 1 hour
 
-const int RELAY_PIN_1 = 12;
-const int RELAY_PIN_2 = 14;
-const int RELAY_PIN_3 = 27;
-const int RELAY_PIN_4 = 26;
-const int RELAY_PIN_5 = 25;
-const int RELAY_PIN_6 = 23;
-const int RELAY_PIN_7 = 32;
-const int RELAY_PIN_8 = 13;
+const int RELAY_PIN_1 = 13;
+const int RELAY_PIN_2 = 32;
+const int RELAY_PIN_3 = 23;
+const int RELAY_PIN_4 = 25;
+const int RELAY_PIN_5 = 26;
+const int RELAY_PIN_6 = 27;
+const int RELAY_PIN_7 = 14;
+const int RELAY_PIN_8 = 12;
 // std::vector<int> relayPins = {12, 14, 27, 26, 25, 23, 32, 13};
 
 #ifdef DOUBLE_PRESS_THRESHOLD

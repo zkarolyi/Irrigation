@@ -63,82 +63,11 @@ void InitializeSchedules()
   convertFromJson(json, schedules);
 }
 
-// time_t getLastSundayUTC(int year, int month, int hour)
-// {
-//   struct tm t = {};
-//   t.tm_year = year - 1900;
-//   t.tm_mon = month - 1;
-//   t.tm_mday = 31;
-//   t.tm_hour = hour;
-//   t.tm_min = 0;
-//   t.tm_sec = 0;
-
-//   time_t ts = mktime(&t);
-//   t = *gmtime(&ts); // Use gmtime to treat as UTC
-
-//   while (t.tm_wday != DST_START_WEEKDAY)
-//   {
-//     ts -= 24 * 60 * 60;
-//     t = *gmtime(&ts);
-//   }
-
-//   // Serial.printf("Last Sunday of %d-%02d at %02d:00 UTC is %s", year, month, hour, asctime(&t));
-//   return ts;
-// }
-
-// bool DaylightSavingActive()
-// {
-//   time_t now;
-//   time(&now);
-
-//   struct tm *utc = gmtime(&now);
-//   int year = utc->tm_year + 1900;
-
-//   time_t dstStart = getLastSundayUTC(year, DST_START_MONTH, DST_START_HOUR);
-//   time_t dstEnd = getLastSundayUTC(year, DST_END_MONTH, DST_END_HOUR);
-
-//   bool isDstActive = (now >= dstStart && now < dstEnd);
-//   // Serial.printf("DST active: %s\n", isDstActive ? "Yes" : "No");
-
-//   return isDstActive;
-// }
-
 void UpdateTimeZone()
 {
   setenv("TZ", tz, 1);
   tzset();
   Serial.printf("Időzóna beállítva: %s\n", tz);
-  // int daylight = DaylightSavingActive() ? daylightOffset_sec : 0;
-
-  // char cst[17] = {0};
-  // char cdt[17] = "DST";
-  // char tz[33] = {0};
-
-  // if (gmtOffset_sec % 3600)
-  // {
-  //   sprintf(cst, "UTC%ld:%02u:%02u", gmtOffset_sec / 3600, abs((gmtOffset_sec % 3600) / 60), abs(gmtOffset_sec % 60));
-  // }
-  // else
-  // {
-  //   sprintf(cst, "UTC%ld", gmtOffset_sec / 3600);
-  // }
-  // if (daylight != 3600)
-  // {
-  //   long tz_dst = gmtOffset_sec - daylight;
-  //   if (tz_dst % 3600)
-  //   {
-  //     sprintf(cdt, "DST%ld:%02u:%02u", tz_dst / 3600, abs((tz_dst % 3600) / 60), abs(tz_dst % 60));
-  //   }
-  //   else
-  //   {
-  //     sprintf(cdt, "DST%ld", tz_dst / 3600);
-  //   }
-  // }
-  // sprintf(tz, "%s%s", cst, cdt);
-  // setenv("TZ", tz, 1);
-  // tzset();
-
-  // Serial.printf("Current TZ: %s\n", tz ? tz : "Not set");
 }
 
 bool InitializeWiFi()
@@ -154,7 +83,7 @@ bool InitializeWiFi()
 
   screen->DisplayMessage(".", true, false);
   // check wi-fi is connected to wi-fi network
-  int countDown = 10;
+  int countDown = 20;
   while (WiFi.status() != WL_CONNECTED && countDown-- > 0)
   {
     delay(1000);
@@ -261,13 +190,6 @@ void InitializeRTC()
   {
     screen->DisplayMessage("RTC lost power", true, true);
   }
-}
-
-void displayRtc()
-{
-  DateTime now = rtc.now();
-  Serial.printf("%d, %04d-%02d-%02d %02d:%02d:%02d\n", now.dayOfTheWeek(), now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-  Serial.printf("%.2fºC\n", rtc.getTemperature());
 }
 
 // ##########################################
@@ -641,11 +563,19 @@ void handleTimer()
   {
     Serial.println("Timer timeout reached");
     timerTimeout = TIMER_TIMEOUT_INTERVAL;
+    if(!wifiConnected){
+      screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
+      wifiConnected = InitializeWiFi();
+      if (!wifiConnected)
+      {
+        screen->DisplayMessage("Failed to reconnect WiFi", true, true);
+      }
+    }
     UpdateTimeZone();
     if (rtc.lostPower())
     {
       struct tm timeinfo;
-      if (getLocalTime(&timeinfo, 200))
+      if (wifiConnected && getLocalTime(&timeinfo, 200))
       {
         screen->DisplayMessage("RTC lost power, setting time", true, true);
         rtc.adjust(DateTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
@@ -654,13 +584,23 @@ void handleTimer()
       else
       {
         screen->DisplayMessage("Failed to set RTC", true, true);
-        timerTimeout = 1000; // Retry in 1000 ms
       }
     }
-    else
-    {
-      displayRtc();
-    }
+  }
+}
+
+void handleRotary()
+{
+  byte rotation = menu->encoder.rotate();
+  if (rotation != 0x00)
+  {
+    screen->DisplayActivate();
+  }
+  byte pushed = menu->encoder.push();
+  if (pushed != 0x00)
+  {
+    isMenuActive = true;
+    menu->menu.show();
   }
 }
 
@@ -800,14 +740,6 @@ void setup()
 // Loop
 void loop()
 {
-  if (Serial.available())
-  {
-    char c = Serial.read();
-    int cInt = c - '0';
-    // digitalWrite(relayPins[cInt], !digitalRead(relayPins[cInt]));
-    analogWrite(5, cInt * 50);
-  }
-
   ManageIrrigation();
   if (isMenuActive)
   {
@@ -816,17 +748,7 @@ void loop()
   else
   {
     screen->DisplayText();
-    byte rotation = menu->encoder.rotate();
-    if (rotation != 0x00)
-    {
-      screen->DisplayActivate();
-    }
-    byte pushed = menu->encoder.push();
-    if (pushed != 0x00)
-    {
-      isMenuActive = true;
-      menu->menu.show();
-    }
+    handleRotary();
   }
   if (wifiConnected)
   {
