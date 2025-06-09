@@ -1,11 +1,11 @@
 <!DOCTYPE html>
+<meta charset="UTF-8">
 <html>
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Irrigation Control</title>
     <link rel="stylesheet" href="site.css">
-    <script src="script.js"></script>
 </head>
 
 <body>
@@ -14,89 +14,68 @@
             <span>Irrigation system</span>
         </div>
         <div class="content">
-            <div class="chanels">
-                <div>
-                    1.
-                </div>
-                <div>
-                    Hátsó kert elöl
+            <div class="status">
+                Mode: <!--Mode-->
+            </div>
+            <div class="channels">
+                <div class="listItemName">
+                    1. None
                 </div>
                 <div onclick="callToggleSwitch(1)">
                     <div class="button" id="ch1">
                         &nbsp;
                     </div>
                 </div>
-                <div>
-                    2.
-                </div>
-                <div>
-                    Hátsó kert hátul
+                <div class="listItemName">
+                    2. None
                 </div>
                 <div onclick="callToggleSwitch(2)">
                     <div class="button" id="ch2">
                         &nbsp;
                     </div>
                 </div>
-                <div>
-                    3.
-                </div>
-                <div>
-                    Előkert
+                <div class="listItemName">
+                    3. None
                 </div>
                 <div onclick="callToggleSwitch(3)">
                     <div class="button" id="ch3">
                         &nbsp;
                     </div>
                 </div>
-                <div>
-                    4.
-                </div>
-                <div>
-                    Csepegtető
+                <div class="listItemName">
+                    4. None
                 </div>
                 <div onclick="callToggleSwitch(4)">
                     <div class="button" id="ch4">
                         &nbsp;
                     </div>
                 </div>
-                <div>
-                    5.
-                </div>
-                <div>
-                    Oldalsó kert
+                <div class="listItemName">
+                    5. None
                 </div>
                 <div onclick="callToggleSwitch(5)">
                     <div class="button" id="ch5">
                         &nbsp;
                     </div>
                 </div>
-                <div>
-                    6.
-                </div>
-                <div>
-                    Nincs
+                <div class="listItemName">
+                    6. None
                 </div>
                 <div onclick="callToggleSwitch(6)">
                     <div class="button" id="ch6">
                         &nbsp;
                     </div>
                 </div>
-                <div>
-                    7.
-                </div>
-                <div>
-                    Nincs
+                <div class="listItemName">
+                    7. None
                 </div>
                 <div onclick="callToggleSwitch(7)">
                     <div class="button" id="ch7">
                         &nbsp;
                     </div>
                 </div>
-                <div>
-                    8.
-                </div>
-                <div>
-                    Nincs
+                <div class="listItemName">
+                    8. None
                 </div>
                 <div onclick="callToggleSwitch(8)">
                     <div class="button" id="ch8">
@@ -106,15 +85,16 @@
             </div>
         </div>
         <div class="buttonLine">
-            <button type="cancel" onclick="callToggleSwitch(0);">Schedule On</button>
-            <button type="cancel" onclick="window.location.href='/ScheduleList';">Schedules</button>
+            <button type="button" onclick="callToggleSwitch(0);">Schedule On</button>
+            <button type="button" onclick="window.location.href='/ScheduleList';">Schedules</button>
         </div>
         <div class="footer">
             Irrigation system 2022
         </div>
     </div>
     <script>
-        {{SetActive}}
+        <!--SetActive-->
     </script>
+    <script src="script.js"></script>
 </body>
 </html>

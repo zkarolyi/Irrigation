@@ -1,11 +1,11 @@
 <!DOCTYPE html>
+<meta charset="UTF-8">
 <html>
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Irrigation Schedule</title>
     <link rel="stylesheet" href="site.css">
-    <script src="script.js"></script>
 </head>
 
 <body>
@@ -91,82 +91,58 @@
                         </select>
                     </div>
                 </div>
-                <div class="chanels">
-                    <div>
-                        1.
-                    </div>
-                    <div>
-                        description
+                <div class="channels">
+                    <div class="listItemName">
+                        1. None
                     </div>
                     <div>
                         <input type="number" id="duration1" name="duration1" min="0" max="60" value="${duration1}">
                     </div>
-                    <div>
-                        2.
-                    </div>
-                    <div>
-                        description
+                    <div class="listItemName">
+                        2. None
                     </div>
                     <div>
                         <input type="number" id="duration2" name="duration2" min="0" max="60" value="${duration2}">
                     </div>
-                    <div>
-                        3.
-                    </div>
-                    <div>
-                        description
+                    <div class="listItemName">
+                        3. None
                     </div>
                     <div>
                         <input type="number" id="duration3" name="duration3" min="0" max="60" value="${duration3}">
                     </div>
-                    <div>
-                        4.
-                    </div>
-                    <div>
-                        description
+                    <div class="listItemName">
+                        4. None
                     </div>
                     <div>
                         <input type="number" id="duration4" name="duration4" min="0" max="60" value="${duration4}">
                     </div>
-                    <div>
-                        5.
-                    </div>
-                    <div>
-                        description
+                    <div class="listItemName">
+                        5. None
                     </div>
                     <div>
                         <input type="number" id="duration5" name="duration5" min="0" max="60" value="${duration5}">
                     </div>
-                    <div>
-                        6.
-                    </div>
-                    <div>
-                        description
+                    <div class="listItemName">
+                        6. None
                     </div>
                     <div>
                         <input type="number" id="duration6" name="duration6" min="0" max="60" value="${duration6}">
                     </div>
-                    <div>
-                        7.
-                    </div>
-                    <div>
-                        description
+                    <div class="listItemName">
+                        7. None
                     </div>
                     <div>
                         <input type="number" id="duration7" name="duration7" min="0" max="60" value="${duration7}">
                     </div>
-                    <div>
-                        8.
-                    </div>
-                    <div>
-                        description
+                    <div class="listItemName">
+                        8. None
                     </div>
                     <div>
                         <input type="number" id="duration8" name="duration8" min="0" max="60" value="${duration8}">
                     </div>
                 </div>
                 <div class="buttonLine">
-                    <button type="cancel" onclick="window.location.href='/ScheduleList';">Cancel</button>
+                    <button type="button" onclick="window.location.href='/ScheduleList';">Cancel</button>
                     <button type="submit">Submit</button>
                 </div>
             </form>
@@ -175,6 +151,7 @@
             Irrigation system 2022
         </div>
     </div>
+    <script src="script.js"></script>
 </body>
 
 </html>

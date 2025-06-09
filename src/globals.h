@@ -23,7 +23,6 @@ extern int rotaryEncoderPosition;
 extern int rotaryEncoderButtonDuration;
 
 extern void saveWiFiCredentials(const char *ssid, const char *password);
-extern bool WifiConnected;
 extern String wifiIpAddress;
 extern String wifiDnsIp;
 extern String wifiGatewayIp;

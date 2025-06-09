@@ -24,8 +24,8 @@ RTC_DS3231 rtc;
 WebServer server(80);
 bool wifiConnected = false;
 IrrigationSchedules schedules;
-Display *screen;
-Menu *menu;
+Display *screen = nullptr;
+Menu *menu = nullptr;
 bool isMenuActive = false;
 std::vector<int> relayPins = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4, RELAY_PIN_5, RELAY_PIN_6, RELAY_PIN_7, RELAY_PIN_8};
 
@@ -150,15 +150,13 @@ void InitializeOTA()
                  else // U_SPIFFS
                    type = "filesystem";
 
-                 // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
                  screen->DisplayMessage("Updating " + type, true, true); })
       .onEnd([]()
              { screen->DisplayMessage("End", true, true); })
       .onProgress([](unsigned int progress, unsigned int total)
                   {
-                    screen->DisplayMessage("Progress: " + String((progress / (total / 100))) + "%", true, true);
-                    // esp_task_wdt_reset();
-                  })
+                    // esp_task_wdt_reset();                   
+                    screen->DisplayMessage("Progress: " + String((progress * 100) / total) + "%", true, true); })
       .onError([](ota_error_t error)
                {
                  screen->DisplayMessage("Error[" + String(error) + "]: ", true, true);
@@ -261,13 +259,19 @@ boolean readWiFiCredentials()
     Serial.println("Failed to open file for reading");
     return false;
   }
-  // file.readStringUntil('\n').toCharArray(ssid, 32);
-  // ssid[strlen(ssid) - 1] = '\0';
-  // file.readStringUntil('\n').toCharArray(password, 64);
-  // password[strlen(password) - 1] = '\0';
   String ssidString = file.readStringUntil('\n');
   String passwordString = file.readStringUntil('\n');
   file.close();
+  if (ssid != nullptr)
+  {
+    free((void *)ssid);
+    ssid = nullptr;
+  }
+  if (password != nullptr)
+  {
+    free((void *)password);
+    password = nullptr;
+  }
 
   ssidString.trim();
   passwordString.trim();
@@ -399,7 +403,8 @@ void handle_OnSetSchedule()
 
   for (int i = 0; i < irrigationChannelNumber; i++)
   {
-    if (!server.hasArg("duration" + String(i + 1)) || server.arg("duration" + String(i + 1)).length() == 0 || server.arg("duration" + String(i + 1)).toInt() < 0 || server.arg("duration" + String(i + 1)).toInt() > 60)
+    String argName = "duration" + String(i + 1);
+    if (!server.hasArg(argName) || server.arg(argName).length() == 0 || server.arg(argName).toInt() < 0 || server.arg(argName).toInt() > 60)
     {
       screen->DisplayMessage("Invalid duration", true, true);
       server.send(400, "text/html", "Invalid duration" + String(i + 1));
@@ -433,7 +438,6 @@ void handle_OnSetSchedule()
   server.sendHeader("Location", "/ScheduleList", true);
   server.send(303, "text/plain", "");
   screen->DisplayMessage("Finished.", true, true);
-  menu->GenerateIrrigationSubmenu();
 }
 
 void handle_onScheduleList()
@@ -495,10 +499,11 @@ void handle_OnRoot()
       if (!digitalRead(schedules.getPin(i)))
       {
         Serial.println("Channel " + String(i + 1) + " is on");
-        body.replace("{{SetActive}}", "document.getElementById('ch" + String(i + 1) + "').classList.add('button-check');");
+        body.replace("<!--SetActive-->", "document.getElementById('ch" + String(i + 1) + "').classList.add('button-check');");
       }
       file.close();
     }
+    body.replace("<!--Mode-->", irrigationScheduleEnabled ? "Scheduled" : "Manual");
   }
   else
   {
@@ -559,11 +564,12 @@ void handle_NotFound()
 
 void handleTimer()
 {
-  if (timerTimeout-- <= 0)
+  if (millis() - TimerLastRun >= TIMER_TIMEOUT_INTERVAL)
   {
+    TimerLastRun = millis();
     Serial.println("Timer timeout reached");
-    timerTimeout = TIMER_TIMEOUT_INTERVAL;
-    if(!wifiConnected){
+    if (WiFi.status() != WL_CONNECTED)
+    {
       screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
       wifiConnected = InitializeWiFi();
       if (!wifiConnected)
@@ -616,17 +622,11 @@ void handleRotary()
 void ManageIrrigation()
 {
   // return if interval not reached
-  if (!irrigationScheduleEnabled || !wifiConnected || millis() - irrigationLastCheck < irrigationCheckInterval)
+  if (!irrigationScheduleEnabled || millis() - irrigationLastCheck < irrigationCheckInterval)
   {
     return;
   }
   irrigationLastCheck = millis();
-
-  // time_t now;
-  // struct tm timeinfo;
-  // time(&now);
-  // localtime_r(&now, &timeinfo);
-  // int currentTime = (timeinfo.tm_hour * 3600) + (timeinfo.tm_min * 60) + timeinfo.tm_sec;
 
   DateTime now = rtc.now();
   int currentTime = (now.hour() * 3600) + (now.minute() * 60) + now.second();
@@ -750,7 +750,7 @@ void loop()
     screen->DisplayText();
     handleRotary();
   }
-  if (wifiConnected)
+  if (WiFi.status() == WL_CONNECTED)
   {
     server.handleClient();
     ArduinoOTA.handle();

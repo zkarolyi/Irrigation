@@ -21,9 +21,14 @@ body {
     margin-top: 20px;
 }
 
-.chanels{
+.status{
+    text-align: left;
+    margin: 20px 100px;
+}
+
+.channels{
     display: grid;
-    grid-template-columns: 50px auto 50px;
+    grid-template-columns: auto 50px;
     grid-row-gap: 2px;
     padding-top: 6px;
     margin: 0px 100px;
@@ -83,7 +88,7 @@ button[type="submit"]:hover {
     border: 3px solid darkgreen;
 }
 
-button[type="cancel"] {
+button[type="button"] {
     text-align: right;
     background-color: darkgray;
     border: 3px solid darkgray;
@@ -92,7 +97,7 @@ button[type="cancel"] {
     border-radius: 10px;
 }
 
-button[type="cancel"]:hover {
+button[type="button"]:hover {
     background-color: gray;
     border: 3px solid darkgray;
 }

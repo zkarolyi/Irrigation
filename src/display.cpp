@@ -61,10 +61,10 @@ Display::Display(const std::vector<int> &pins, int dimmPin)
     }
 }
 
-LiquidCrystal_I2C Display::GetLcd()
-{
-    return lcd;
-}
+// LiquidCrystal_I2C& Display::GetLcd()
+// {
+//     return lcd;
+// }
 
 void Display::DisplayBigNumber(int row, int column, int num, bool colon)
 {

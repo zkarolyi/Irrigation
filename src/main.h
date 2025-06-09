@@ -25,7 +25,7 @@ int displayDimmPin = 5;
 int displayNetworkActivity = 0;
 int displayOutChange = 0;
 
-int timerTimeout = 0;
+unsigned long TimerLastRun = 0;
 
 String wifiIpAddress;
 String wifiDnsIp;
