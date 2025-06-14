@@ -80,10 +80,13 @@ void Menu::GenerateIrrigationSubmenu()
 
     int numberOfSchedules = schedules.getNumberOfSchedules();
 
+    DateTime now = rtc.now();
+
     std::vector<MenuItem*> items;
     for (int i = 0; i < numberOfSchedules; i++)
     {
-        String itemName = String(i + 1) + "." + schedules.getSchedule(i).getStartTimeString() + "-" + daysToRunValues[schedules.getSchedule(i).getDaysToRun()];
+        IrrigationSchedule sc = schedules.getSchedule(i);
+        String itemName = String(i + 1) + "." + sc.getStartTimeString() + "-" + (sc.isValidForDay(now) ? "!" : "") + daysToRunValues[sc.getDaysToRun()];
         items.push_back(new ItemCommandInt(strdup(itemName.c_str()), i, commandScheduleSelectCallback));
     }
     items.push_back(new ItemCommandInt("Add schedule", -1, commandScheduleEditCallback));

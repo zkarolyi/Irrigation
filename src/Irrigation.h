@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <ArduinoJson.h>
+#include <RTClib.h>
 
 const int irrigationChannelNumber = 8;
 
@@ -51,6 +52,8 @@ public:
     void setWeight(int weight);
     // Method to get weight of the schedule
     int getWeight() const;
+    // Method to check if schedule is valid for the given day
+    bool isValidForDay(DateTime date) const;
 
 private:
     int startTime;
@@ -91,5 +94,6 @@ private:
 
 String convertToJson(const IrrigationSchedules &schedules);
 bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules);
+int dayOfYear(DateTime dt);
 
 #endif // IRRIGATION_H

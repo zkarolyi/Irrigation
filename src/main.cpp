@@ -454,14 +454,18 @@ void handle_onScheduleList()
     {
       IrrigationSchedule sch = schedules.getSchedule(i);
       lines += "<div class=\"listItem\">";
-      lines += string(sch.getStartTimeString().c_str());
+      lines += string(sch.getStartTimeString().c_str()) + " ";
+      for (int d = 0; d <= 3; ++d) {
+        DateTime futureDay = rtc.now() + TimeSpan(d, 0, 0, 0);
+        lines += sch.isValidForDay(futureDay) ? "!" : "-";
+      }
       lines += "</div>";
       lines += "<div class=\"listItem\">";
       lines += std::to_string(sch.getWeight());
       lines += "</div>";
       lines += "<div class=\"listItem\">";
       lines += "<a href=\"Schedule?id=" + std::to_string(i) + "\" class=\"linkButton\">Details</a>";
-      lines += "</div>";
+      lines += "</div>\n";
     }
     body.replace("${schedules}", lines.c_str());
     file.close();
@@ -630,11 +634,18 @@ void ManageIrrigation()
 
   DateTime now = rtc.now();
   int currentTime = (now.hour() * 3600) + (now.minute() * 60) + now.second();
+  int dayOfYear = // precise counting day of year (1-365)
+      (now.year() - 1970) * 365 + (now.year() - 1969) / 4 - (now.year() - 1901) / 100 + (now.year() - 1601) / 400;
+      
 
   int channelToStart = -1;
   for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
   {
     IrrigationSchedule schedule = schedules.getSchedule(i);
+    if(!schedule.isValidForDay(now))
+    {
+      continue;
+    }
     int startTime = schedule.getStartTime() * 60;
     for (int j = 0; j < schedules.getNumberOfChannels(); j++)
     {

@@ -93,6 +93,25 @@ int IrrigationSchedule::getWeight() const
     return weight;
 }
 
+// Check if schedule is valid for the given day
+bool IrrigationSchedule::isValidForDay(DateTime date) const
+{
+    if (daysToRun == 0)  // All days
+    {
+        return true;
+    }
+    int day = dayOfYear(date);
+    if (daysToRun == 1)  // Odd days
+    {
+        return day % 2 != 0;
+    }
+    if (daysToRun >= 2 && daysToRun <= 7)  // Every N days
+    {
+        return day % (daysToRun) == 0;
+    }
+    return false;
+}
+
 // -----------------------------------------
 // Constructor for IrrigationSchedules class
 // -----------------------------------------
@@ -232,4 +251,18 @@ bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules)
     }
 
     return true;
+}
+
+int dayOfYear(DateTime dt) {
+    static const int daysPerMonth[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+    int num = dt.day();
+    for (int i = 0; i < dt.month() - 1; i++) {
+        num += daysPerMonth[i];
+    }
+    if (dt.month() > 2 && dt.year() % 4 == 0 && 
+       (dt.year() % 100 != 0 || dt.year() % 400 == 0)) {
+        num += 1;
+    }
+
+    return num;
 }
