@@ -570,12 +570,12 @@ void handle_NotFound()
   server.send(404, "text/plain", "Page not found");
 }
 
-void handleTimer()
+void handleTimer(bool runNow = false)
 {
-  if (millis() - TimerLastRun >= TIMER_TIMEOUT_INTERVAL)
+  if (runNow || millis() - TimerLastRun >= TIMER_TIMEOUT_INTERVAL)
   {
     TimerLastRun = millis();
-    Serial.println("Timer timeout reached");
+    Serial.println("Timer handler reached");
     if (WiFi.status() != WL_CONNECTED)
     {
       screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
@@ -746,8 +746,6 @@ void setup()
   {
     screen->DisplayMessage("OTA not started", true, true);
   }
-
-  TimerLastRun = millis() - (TIMER_TIMEOUT_INTERVAL - 60000); // 1 minute
 }
 
 // ###########################################################################
@@ -802,6 +800,12 @@ void resetScreenCallback()
 {
   screen->SetCustomChars();
   screen->DisplayActivate();
+  exitMenuCallback();
+}
+
+void resetRtcCallback()
+{
+  handleTimer(true);
   exitMenuCallback();
 }
 

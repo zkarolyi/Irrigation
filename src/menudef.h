@@ -25,6 +25,7 @@ MENU_SCREEN(settingsScreen, settingsItems,
             ITEM_COMMAND("Wifi Information", wifiInformationCallback),
             ITEM_SUBMENU("Wifi Settings", wifiSettingsScreen),
             ITEM_COMMAND("Reset Screen", resetScreenCallback),
+            ITEM_COMMAND("Reset RTC", resetRtcCallback),
             ITEM_BACK("Back"));
 
 // Wifi settings submenu

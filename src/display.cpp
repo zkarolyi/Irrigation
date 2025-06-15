@@ -314,7 +314,6 @@ void Display::DisplayMessage(String message, bool first, bool last)
         }
     }
     displayLinesPosition[row] = 0;
-    DisplayText();
 }
 
 String Display::LongToString(long value, int digits)
