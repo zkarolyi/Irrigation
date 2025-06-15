@@ -455,9 +455,13 @@ void handle_onScheduleList()
       IrrigationSchedule sch = schedules.getSchedule(i);
       lines += "<div class=\"listItem\">";
       lines += string(sch.getStartTimeString().c_str()) + " ";
-      for (int d = 0; d <= 3; ++d) {
-        DateTime futureDay = rtc.now() + TimeSpan(d, 0, 0, 0);
-        lines += sch.isValidForDay(futureDay) ? "!" : "-";
+      if (!rtc.lostPower())
+      {
+        for (int d = 0; d <= 3; ++d)
+        {
+          DateTime futureDay = rtc.now() + TimeSpan(d, 0, 0, 0);
+          lines += sch.isValidForDay(futureDay) ? "!" : "-";
+        }
       }
       lines += "</div>";
       lines += "<div class=\"listItem\">";
@@ -585,11 +589,19 @@ void handleTimer()
     if (rtc.lostPower())
     {
       struct tm timeinfo;
-      if (wifiConnected && getLocalTime(&timeinfo, 200))
+      if (wifiConnected)
       {
-        screen->DisplayMessage("RTC lost power, setting time", true, true);
-        rtc.adjust(DateTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec));
+        if (getLocalTime(&timeinfo, 200))
+        {
+          screen->DisplayMessage("RTC lost power, setting time", true, true);
+          rtc.adjust(DateTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                              timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec));
+        }
+        else
+        {
+          screen->DisplayMessage("Failed to set RTC, retrying in 3 minutes", true, true);
+          TimerLastRun = millis() - (TIMER_TIMEOUT_INTERVAL - 180000); // 3 minutes
+        }
       }
       else
       {
@@ -636,13 +648,12 @@ void ManageIrrigation()
   int currentTime = (now.hour() * 3600) + (now.minute() * 60) + now.second();
   int dayOfYear = // precise counting day of year (1-365)
       (now.year() - 1970) * 365 + (now.year() - 1969) / 4 - (now.year() - 1901) / 100 + (now.year() - 1601) / 400;
-      
 
   int channelToStart = -1;
   for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
   {
     IrrigationSchedule schedule = schedules.getSchedule(i);
-    if(!schedule.isValidForDay(now))
+    if (!schedule.isValidForDay(now))
     {
       continue;
     }
@@ -735,6 +746,8 @@ void setup()
   {
     screen->DisplayMessage("OTA not started", true, true);
   }
+
+  TimerLastRun = millis() - (TIMER_TIMEOUT_INTERVAL - 60000); // 1 minute
 }
 
 // ###########################################################################
@@ -785,10 +798,11 @@ void exitMenuCallback()
   Serial.println("Exit menu");
 }
 
-void backlightCallback(int value)
+void resetScreenCallback()
 {
-  Serial.printf("Backlight: %d\n", value);
-  screen->DisplayDimm(value);
+  screen->SetCustomChars();
+  screen->DisplayActivate();
+  exitMenuCallback();
 }
 
 void wifiInformationCallback()
@@ -886,6 +900,8 @@ void commandScheduleSaveCallback(int scheduleIndex)
   }
   SaveSchedules(schedules);
 
+  screen->DisplayMessage("Schedule saved", true, true);
+
   menu->menu.process(BACK);
   exitMenuCallback();
   Serial.printf("Save schedule %d\n", scheduleIndex);
@@ -895,6 +911,7 @@ void commandScheduleDeleteCallback(int scheduleIndex)
 {
   schedules.removeSchedule(scheduleIndex);
   SaveSchedules(schedules);
+  screen->DisplayMessage("Schedule deleted", true, true);
   menu->menu.process(BACK);
   exitMenuCallback();
   Serial.printf("Delete schedule %d\n", scheduleIndex);

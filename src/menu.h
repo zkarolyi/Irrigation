@@ -34,20 +34,18 @@ class Menu
     void GenerateScheduleEditSubmenu(int scheduleIndex);
   private:
     LiquidCrystal_I2CAdapter lcdAdapter;
-    void DeleteScreen(MenuScreen *screen);
+    void DeleteScreenItems(MenuScreen *screen);
 };
 
 // Callback functions
 extern void toggleChannel(int channel);
 extern void toggleCallback(bool isOn, int index);
-extern void commandCallback();
 extern void exitMenuCallback();
 extern void inputSsidCallback(char *value);
 extern void inputPwdCallback(char *value);
 extern void commandWifiCallback();
 extern void wifiInformationCallback();
-extern void backlightCallback(int value);
-extern void commandAddScheduleCallback();
+extern void resetScreenCallback();
 extern void commandScheduleSelectCallback(int scheduleIndex);
 extern void commandScheduleEditCallback(int scheduleIndex);
 extern void commandScheduleDeleteCallback(int scheduleIndex);

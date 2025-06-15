@@ -34,16 +34,6 @@ void toggleCallback(bool isOn, int index)
     Serial.printf("Channel %d %s\n", index, isOn ? "started" : "stopped");
 }
 
-void commandCallback()
-{
-    Serial.println("Callback");
-}
-
-void commandAddScheduleCallback()
-{
-    Serial.println("Add schedule");
-}
-
 Menu::Menu()
     : lcdAdapter(new LiquidCrystal_I2C(DISPLAY_ADDRESS, DISPLAY_COLUMNS, DISPLAY_LINES)),
       renderer(CharacterDisplayRenderer(&lcdAdapter, DISPLAY_COLUMNS, DISPLAY_LINES, 0x7E, 0x7F, NULL, NULL)),
@@ -56,73 +46,98 @@ Menu::Menu()
 
 void Menu::GenerateManualScreen()
 {
-    // Clean up old manualScreen and its items if they exist
-    DeleteScreen(manualScreen);
+    Serial.println("Generating manual screen");
+    if (manualScreen == nullptr)
+    {
+        manualScreen = new MenuScreen(std::vector<MenuItem *>{});
+        Serial.println("Created new manual screen");
+    }
+    else
+    {
+        DeleteScreenItems(manualScreen);
+    }
 
     int numberOfChannels = schedules.getNumberOfChannels();
     int ch = 0;
-    std::vector<MenuItem*> items;
-    for(int i = 0; i < numberOfChannels; i++)
+    for (int i = 0; i < numberOfChannels; i++)
     {
         String itemName = "Ch" + String(i + 1) + " toggle";
-        items.push_back(new ItemCommandInt(strdup(itemName.c_str()), i, toggleChannel));
+        manualScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, toggleChannel));
     }
-    items.push_back(new ItemCommandInt("Off, schedule", -1, toggleChannel));
-    items.push_back(new ItemBack("Back"));
-    
-    manualScreen = new MenuScreen(items);
+    manualScreen->addItem(new ItemCommandInt("Off, schedule", -1, toggleChannel));
+    manualScreen->addItem(new ItemBack("Back"));
+    Serial.println("Manual screen generated with " + String(numberOfChannels) + " channels");
 }
 
 void Menu::GenerateIrrigationSubmenu()
 {
-    // Clean up old schedulesScreen and its items if they exist
-    DeleteScreen(schedulesScreen);
+    Serial.println("Generating irrigation submenu");
+    if (schedulesScreen == nullptr)
+    {
+        schedulesScreen = new MenuScreen(std::vector<MenuItem *>{});
+        Serial.println("Created new schedules screen");
+    }
+    else
+    {
+        DeleteScreenItems(schedulesScreen);
+    }
 
     int numberOfSchedules = schedules.getNumberOfSchedules();
 
     DateTime now = rtc.now();
 
-    std::vector<MenuItem*> items;
     for (int i = 0; i < numberOfSchedules; i++)
     {
         IrrigationSchedule sc = schedules.getSchedule(i);
         String itemName = String(i + 1) + "." + sc.getStartTimeString() + "-" + (sc.isValidForDay(now) ? "!" : "") + daysToRunValues[sc.getDaysToRun()];
-        items.push_back(new ItemCommandInt(strdup(itemName.c_str()), i, commandScheduleSelectCallback));
+        schedulesScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, commandScheduleSelectCallback));
     }
-    items.push_back(new ItemCommandInt("Add schedule", -1, commandScheduleEditCallback));
-    items.push_back(new ItemBack("Back"));
-
-    schedulesScreen = new MenuScreen(items);
+    schedulesScreen->addItem(new ItemCommandInt("Add schedule", -1, commandScheduleEditCallback));
+    schedulesScreen->addItem(new ItemBack("Back"));
+    Serial.println("Irrigation submenu generated with " + String(numberOfSchedules) + " schedules");
 }
 
 void Menu::GenerateScheduleViewSubmenu(int scheduleIndex)
 {
-    // Clean up old scheduleViewScreen and its items if they exist
-    DeleteScreen(scheduleViewScreen);
+    Serial.printf("Generating schedule view submenu for index %d\n", scheduleIndex);
+    if (scheduleViewScreen == nullptr)
+    {
+        scheduleViewScreen = new MenuScreen(std::vector<MenuItem *>{});
+        scheduleViewScreen->setParent(schedulesScreen);
+    }
+    else
+    {
+        DeleteScreenItems(scheduleViewScreen);
+    }
 
     IrrigationSchedule schedule = schedules.getSchedule(scheduleIndex);
     int numberOfChannels = schedules.getNumberOfChannels();
 
-    std::vector<MenuItem*> items;
-    items.push_back(new MenuItem(strdup(("Start: " + schedule.getStartTimeString()).c_str())));
-    items.push_back(new MenuItem(strdup(("Days: " + String(daysToRunValues[schedule.getDaysToRun()])).c_str())));
-    items.push_back(new MenuItem(strdup(("Weight: " + String(schedule.getWeight()) + "%").c_str())));
+    scheduleViewScreen->addItem(new MenuItem(strdup(("Start: " + schedule.getStartTimeString()).c_str())));
+    scheduleViewScreen->addItem(new MenuItem(strdup(("Days: " + String(daysToRunValues[schedule.getDaysToRun()])).c_str())));
+    scheduleViewScreen->addItem(new MenuItem(strdup(("Weight: " + String(schedule.getWeight()) + "%").c_str())));
     for (int i = 0; i < numberOfChannels; i++)
     {
         String itemName = "Ch" + String(i + 1) + ": " + String(schedule.getChannelDuration(i)) + " min";
-        items.push_back(new MenuItem(strdup(itemName.c_str())));
+        scheduleViewScreen->addItem(new MenuItem(strdup(itemName.c_str())));
     }
-    items.push_back(new ItemCommandInt("Edit", scheduleIndex, commandScheduleEditCallback));
-    items.push_back(new ItemBack("Back"));
-
-    scheduleViewScreen = new MenuScreen(items);
-    scheduleViewScreen->setParent(schedulesScreen);
+    scheduleViewScreen->addItem(new ItemCommandInt("Edit", scheduleIndex, commandScheduleEditCallback));
+    scheduleViewScreen->addItem(new ItemBack("Back"));
+    Serial.printf("Schedule view submenu generated for index %d\n", scheduleIndex);
 }
 
 void Menu::GenerateScheduleEditSubmenu(int scheduleIndex)
 {
-    // Clean up old scheduleEditScreen and its items if they exist
-    DeleteScreen(scheduleEditScreen);
+    Serial.printf("Generating schedule edit submenu for index %d\n", scheduleIndex);
+    if (scheduleEditScreen == nullptr)
+    {
+        scheduleEditScreen = new MenuScreen(std::vector<MenuItem *>());
+        scheduleEditScreen->setParent(mainScreen);
+    }
+    else
+    {
+        DeleteScreenItems(scheduleEditScreen);
+    }
 
     IrrigationSchedule schedule;
     if (scheduleIndex < 0)
@@ -135,34 +150,32 @@ void Menu::GenerateScheduleEditSubmenu(int scheduleIndex)
     }
 
     int numberOfChannels = schedules.getNumberOfChannels();
-    std::vector<MenuItem*> items;
-    items.push_back(new ItemWidget<int, int>(strdup("Start"), new WidgetRange<int>(schedule.getStartTimeHours(), 1, 0, 23, " %02d", 0, false), new WidgetRange<int>(schedule.getStartTimeMinutes(), 15, 0, 45, ":%02d", 0, false), nullptr));
-    items.push_back(new ItemWidget<uint8_t>(strdup("Days"), new WidgetList<const char *>(daysToRunValues, (int)schedule.getDaysToRun(), " %s", 0, true, nullptr), nullptr));
-    items.push_back(new ItemWidget<int>(strdup("Weight"), new WidgetRange<int>(schedule.getWeight(), 25, 50, 150, " %d%%", 1, false), nullptr));
+    scheduleEditScreen->addItem(new ItemWidget<int, int>(strdup("Start"), new WidgetRange<int>(schedule.getStartTimeHours(), 1, 0, 23, " %02d", 0, false), new WidgetRange<int>(schedule.getStartTimeMinutes(), 15, 0, 45, ":%02d", 0, false), nullptr));
+    scheduleEditScreen->addItem(new ItemWidget<uint8_t>(strdup("Days"), new WidgetList<const char *>(daysToRunValues, (int)schedule.getDaysToRun(), " %s", 0, true, nullptr), nullptr));
+    scheduleEditScreen->addItem(new ItemWidget<int>(strdup("Weight"), new WidgetRange<int>(schedule.getWeight(), 25, 50, 150, " %d%%", 1, false), nullptr));
     for (int i = 0; i < numberOfChannels; i++)
     {
         String itemName = "Ch" + String(i + 1);
-        items.push_back(new ItemWidget<int>(strdup(itemName.c_str()), new WidgetRange<int>(schedule.getChannelDuration(i), 1, 0, 60, " %d min", 4, false), nullptr));
+        scheduleEditScreen->addItem(new ItemWidget<int>(strdup(itemName.c_str()), new WidgetRange<int>(schedule.getChannelDuration(i), 1, 0, 60, " %d min", 4, false), nullptr));
     }
-    items.push_back(new ItemCommandInt("Save", scheduleIndex, commandScheduleSaveCallback));
-    items.push_back(new ItemCommandInt("Delete", scheduleIndex, commandScheduleDeleteCallback));
-    items.push_back(new ItemBack("Back"));
-
-    scheduleEditScreen = new MenuScreen(items);
-    scheduleEditScreen->setParent(mainScreen);
+    scheduleEditScreen->addItem(new ItemCommandInt("Save", scheduleIndex, commandScheduleSaveCallback));
+    scheduleEditScreen->addItem(new ItemCommandInt("Delete", scheduleIndex, commandScheduleDeleteCallback));
+    scheduleEditScreen->addItem(new ItemBack("Back"));
+    Serial.println("Schedule edit submenu generated");
 }
 
-void Menu::DeleteScreen(MenuScreen *screen)
+void Menu::DeleteScreenItems(MenuScreen *screen)
 {
+    Serial.println("Deleting screen items");
     if (screen != nullptr)
     {
-        int i = 0;
-        MenuItem *item;
-        while ((item = screen->getItemAt(i)) != nullptr)
+        while (screen->size() > 0)
         {
-            delete item;
-            i++;
+            screen->removeLastItem();
         }
-        delete screen;
+    }
+    else
+    {
+        Serial.println("Screen is null, nothing to delete.");
     }
 }

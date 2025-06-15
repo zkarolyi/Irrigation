@@ -14,6 +14,7 @@ public:
     void DisplayText();
     void DisplayMessage(String message, bool first = true, bool last = false);
     void DisplayActivate(int timeout = DISPLAY_TIMEOUT_INTERVAL);
+    void SetCustomChars();
     // LiquidCrystal_I2C& GetLcd();
 private:
     int numOfChannels;

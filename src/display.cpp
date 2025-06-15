@@ -39,14 +39,9 @@ Display::Display(const std::vector<int> &pins, int dimmPin)
     pinMode(displayDimmPin, OUTPUT);
     analogWrite(displayDimmPin, 255);
 
-    lcd.createChar(0, LT);
-    lcd.createChar(1, UB);
-    lcd.createChar(2, RT);
-    lcd.createChar(3, LL);
-    lcd.createChar(4, LB);
-    lcd.createChar(5, LR);
-    lcd.createChar(6, MB);
-    lcd.createChar(7, BS);
+    delay(1000);
+
+    this->SetCustomChars();
 
     numOfChannels = pins.size();
     channelPins = new int[numOfChannels];
@@ -192,6 +187,17 @@ void Display::DisplayActivate(int timeout)
     displayLastScroll = millis();
 }
 
+void Display::SetCustomChars(){
+    lcd.createChar(0, LT);
+    lcd.createChar(1, UB);
+    lcd.createChar(2, RT);
+    lcd.createChar(3, LL);
+    lcd.createChar(4, LB);
+    lcd.createChar(5, LR);
+    lcd.createChar(6, MB);
+    lcd.createChar(7, BS);
+}
+
 void Display::DisplayText()
 {
     if (millis() - displayLastUpdate < DISPLAY_LAST_UPDATE_INTERVAL)
@@ -274,8 +280,7 @@ void Display::DisplayText()
             DisplayBigNumber(1, 2, now.hour() * 100 + now.minute(), now.second() % 2 == 0);
         }
     }
-    if (timeSynced)
-        DisplayStatus(now.second());
+    DisplayStatus(timeSynced ? now.second() : 0);
 }
 
 void Display::DisplayMessage(String message, bool first, bool last)

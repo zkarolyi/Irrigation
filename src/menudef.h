@@ -22,12 +22,9 @@ MenuScreen *scheduleEditScreen; // dinamically generated
 
 // Settings submenu
 MENU_SCREEN(settingsScreen, settingsItems,
-            ITEM_WIDGET(
-                "Backlight",
-                backlightCallback,
-                WIDGET_RANGE(100, 10, 50, 250, "%dm", 1)),
             ITEM_COMMAND("Wifi Information", wifiInformationCallback),
             ITEM_SUBMENU("Wifi Settings", wifiSettingsScreen),
+            ITEM_COMMAND("Reset Screen", resetScreenCallback),
             ITEM_BACK("Back"));
 
 // Wifi settings submenu
