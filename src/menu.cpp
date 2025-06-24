@@ -4,28 +4,23 @@
 #include "menu.h"
 #include "menudef.h"
 
-void inputSsidCallback(char *value)
-{
-    Serial.print(F("# "));
-    Serial.println(value);
-}
-
-void inputPwdCallback(char *value)
-{
-    Serial.print(F("# "));
-    Serial.println(value);
-}
-
 void commandWifiCallback()
 {
     Serial.println("Wifi connect");
     char *ssid = (static_cast<ItemInputCharset *>(wifiSettingsItems[0]))->getValue(); // wifiSettingsScreen->getItemAt(0)->getText();
     char *pwd = (static_cast<ItemInputCharset *>(wifiSettingsItems[1]))->getValue();  // wifiSettingsScreen->getItem(1)->getValue();
-    Serial.print("SSID: ");
-    Serial.println(ssid);
-    Serial.print("Password: ");
-    Serial.println(pwd);
     saveWiFiCredentials(ssid, pwd);
+    exitMenuCallback();
+}
+
+void commandMqttCallback()
+{
+    Serial.println("MQTT connect");
+    char *broker = (static_cast<ItemInputCharset *>(mqttSettingsItems[0]))->getValue();
+    int port = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<int, int> *>(mqttSettingsItems[1])->getWidgetAt(0))->getValue();
+    char *username = (static_cast<ItemInputCharset *>(mqttSettingsItems[2]))->getValue();
+    char *password = (static_cast<ItemInputCharset *>(mqttSettingsItems[3]))->getValue();
+    saveMqttCredentials(broker, port, username, password);
     exitMenuCallback();
 }
 
@@ -56,6 +51,11 @@ void Menu::GenerateManualScreen()
     {
         DeleteScreenItems(manualScreen);
     }
+    manualScreen->addItem(
+        new ItemWidget<int>(
+            strdup("Duration"),
+            new WidgetRange<int>(manualIrrigationDurationDef, 1, manualIrrigationDurationMin, manualIrrigationDurationMax, " %d", 0, true),
+            nullptr));
 
     int numberOfChannels = schedules.getNumberOfChannels();
     int ch = 0;
@@ -64,7 +64,7 @@ void Menu::GenerateManualScreen()
         String itemName = "Ch" + String(i + 1) + " toggle";
         manualScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, toggleChannel));
     }
-    manualScreen->addItem(new ItemCommandInt("Off, schedule", -1, toggleChannel));
+    manualScreen->addItem(new ItemCommandInt("Schedule On", -1, toggleChannel));
     manualScreen->addItem(new ItemBack("Back"));
     Serial.println("Manual screen generated with " + String(numberOfChannels) + " channels");
 }
@@ -89,7 +89,7 @@ void Menu::GenerateIrrigationSubmenu()
     for (int i = 0; i < numberOfSchedules; i++)
     {
         IrrigationSchedule sc = schedules.getSchedule(i);
-        String itemName = String(i + 1) + "." + sc.getStartTimeString() + "-" + (sc.isValidForDay(now) ? "!" : "") + daysToRunValues[sc.getDaysToRun()];
+        String itemName = String(i + 1) + "." + sc.getStartTimeString() + (sc.isValidForDay(now) ? "+" : "-") + daysToRunValues[sc.getDaysToRun()];
         schedulesScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, commandScheduleSelectCallback));
     }
     schedulesScreen->addItem(new ItemCommandInt("Add schedule", -1, commandScheduleEditCallback));
@@ -150,7 +150,7 @@ void Menu::GenerateScheduleEditSubmenu(int scheduleIndex)
     }
 
     int numberOfChannels = schedules.getNumberOfChannels();
-    scheduleEditScreen->addItem(new ItemWidget<int, int>(strdup("Start"), new WidgetRange<int>(schedule.getStartTimeHours(), 1, 0, 23, " %02d", 0, false), new WidgetRange<int>(schedule.getStartTimeMinutes(), 15, 0, 45, ":%02d", 0, false), nullptr));
+    scheduleEditScreen->addItem(new ItemWidget<int, int>(strdup("Start"), new WidgetRange<int>(schedule.getStartTimeHours(), 1, 0, 23, " %02d", 0, true), new WidgetRange<int>(schedule.getStartTimeMinutes(), 15, 0, 45, ":%02d", 0, true), nullptr));
     scheduleEditScreen->addItem(new ItemWidget<uint8_t>(strdup("Days"), new WidgetList<const char *>(daysToRunValues, (int)schedule.getDaysToRun(), " %s", 0, true, nullptr), nullptr));
     scheduleEditScreen->addItem(new ItemWidget<int>(strdup("Weight"), new WidgetRange<int>(schedule.getWeight(), 25, 50, 150, " %d%%", 1, false), nullptr));
     for (int i = 0; i < numberOfChannels; i++)

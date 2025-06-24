@@ -6,20 +6,34 @@ void InitFS();
 const char *HOSTNAME = "Irrigation";
 
 const char *ntpServer = "pool.ntp.org";
-// const long gmtOffset_sec = 3600;
-const char* tz = "CET-1CEST,M3.5.0/2,M10.5.0/3";
-// const int DST_START_MONTH = 3;    // March
-// const int DST_START_WEEKDAY = 0;  // Sunday (0=Sunday)
-// const int DST_START_WEEK = -1;    // Last week of the month
-// const int DST_START_HOUR = 1;     // 01:00 UTC
-// const int DST_END_MONTH = 10;     // October
-// const int DST_END_WEEKDAY = 0;    // Sunday (0=Sunday)
-// const int DST_END_WEEK = -1;      // Last week of the month
-// const int DST_END_HOUR = 1;       // 01:00 UTC
+const char *tz = "CET-1CEST,M3.5.0/2,M10.5.0/3";
+
+struct MqttConfig {
+  const char *broker;
+  int port;
+  const char *username;
+  const char *password;
+  const char *topic;
+  const char *clientId;
+  bool isValid() const {
+    return broker != nullptr && port > 0 && username != nullptr && password != nullptr && topic != nullptr && clientId != nullptr;
+  }
+  void free() {
+    ::free((void*)broker);
+    ::free((void*)username);
+    ::free((void*)password);
+    broker = nullptr;
+    username = nullptr;
+    password = nullptr;
+  }
+};
+extern MqttConfig mqttConfig;
+void sendMQTTMessage(String payload);
 
 bool irrigationScheduleEnabled = true;
 int irrigationCheckInterval = 10000;
 int irrigationLastCheck = 0;
+int irrigationManualEnd = 0;
 
 int displayDimmPin = 5;
 int displayNetworkActivity = 0;

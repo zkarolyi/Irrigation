@@ -1,6 +1,7 @@
 async function callToggleSwitch(ch) {
     try {
-        const response = await fetch('/ToggleSwitch?ch=' + ch);
+        const duration = document.getElementById('duration').value;
+        const response = await fetch('/ToggleSwitch?ch=' + ch + '&duration=' + duration);
         const data = await response.json();
         console.log(data);
     } catch (error) {
@@ -8,7 +9,6 @@ async function callToggleSwitch(ch) {
     }
     location.reload();
 }
-
 
 document.addEventListener("DOMContentLoaded", function() {
     fetch('channelNames.json')

@@ -147,6 +147,15 @@ void Display::DisplayStatus(int animation)
         lcd.write((digitalRead(channelPins[i]) == HIGH ? '_' : animationChar)); // Update with actual pin logic
     }
 
+    if (irrigationManualEnd > millis())
+    {
+        lcd.print(" - ");
+        int left = static_cast<int>((irrigationManualEnd - millis()) / 1000);
+        char timeLeft[6];
+        snprintf(timeLeft, sizeof(timeLeft), "%02d:%02d", left / 60, left % 60);
+        lcd.print(timeLeft);
+    }
+
     // Network activity status
     lcd.setCursor(DISPLAY_COLUMNS - 1, 0);
     lcd.write(displayNetworkActivity > 0 ? B11001110 : ' ');
@@ -187,7 +196,8 @@ void Display::DisplayActivate(int timeout)
     displayLastScroll = millis();
 }
 
-void Display::SetCustomChars(){
+void Display::SetCustomChars()
+{
     lcd.createChar(0, LT);
     lcd.createChar(1, UB);
     lcd.createChar(2, RT);

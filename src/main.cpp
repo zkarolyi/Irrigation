@@ -29,6 +29,13 @@ Menu *menu = nullptr;
 bool isMenuActive = false;
 std::vector<int> relayPins = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4, RELAY_PIN_5, RELAY_PIN_6, RELAY_PIN_7, RELAY_PIN_8};
 
+MqttConfig mqttConfig = {
+  .topic = mqttTopic,
+  .clientId = mqttClientId,
+};
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+
 // ##########################################
 // ###      ###  ####  ###      ###        ##
 // #####  #####    ##  #####  ########  #####
@@ -190,6 +197,11 @@ void InitializeRTC()
   }
 }
 
+void InitializeMQTT()
+{
+  mqttClient.setServer(mqttConfig.broker, mqttConfig.port);
+}
+
 // ##########################################
 // ##        ###      ###  ########        ##
 // ##  ###########  #####  ########  ########
@@ -279,6 +291,78 @@ boolean readWiFiCredentials()
   ssid = strdup(ssidString.c_str());
   password = strdup(passwordString.c_str());
   Serial.println("Wifi read from file");
+  return true;
+}
+
+void saveMqttCredentials(const char *broker, int port, const char *username, const char *password)
+{
+  mqttConfig.free();
+
+  mqttConfig.broker = strdup(broker);
+  mqttConfig.port = port;
+  mqttConfig.username = strdup(username);
+  mqttConfig.password = strdup(password);
+
+  Serial.printf("Saving MQTT credentials: %s, %d, %s, %s\n",
+                mqttConfig.broker,
+                mqttConfig.port,
+                mqttConfig.username,
+                mqttConfig.password);
+
+  File file = SPIFFS.open("/mqtt.txt", FILE_WRITE);
+  if (!file)
+  {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+
+  file.println(mqttConfig.broker);
+  file.println(mqttConfig.port);
+  file.println(mqttConfig.username);
+  file.println(mqttConfig.password);
+  file.close();
+
+  Serial.println("MQTT credentials saved");
+}
+
+boolean readMqttCredentials()
+{
+  if (!SPIFFS.exists("/mqtt.txt"))
+  {
+    Serial.println("No mqtt file found");
+    return false;
+  }
+  File file = SPIFFS.open("/mqtt.txt", FILE_READ);
+  if (!file)
+  {
+    Serial.println("Failed to open file for reading");
+    return false;
+  }
+  String brokerString = file.readStringUntil('\n');
+  String portString = file.readStringUntil('\n');
+  String usernameString = file.readStringUntil('\n');
+  String passwordString = file.readStringUntil('\n');
+  file.close();
+
+  if (!brokerString.length() || !portString.length() || !usernameString.length() || !passwordString.length())
+  {
+    Serial.println("MQTT file format incorrect");
+    return false;
+  }
+
+  brokerString.trim();
+  portString.trim();
+  usernameString.trim();
+  passwordString.trim();
+
+  mqttConfig.free();
+
+  mqttConfig.broker = strdup(brokerString.c_str());
+  mqttConfig.port = portString.toInt();
+  mqttConfig.username = strdup(usernameString.c_str());
+  mqttConfig.password = strdup(passwordString.c_str());
+
+  Serial.println("MQTT read from file");
   return true;
 }
 
@@ -511,7 +595,15 @@ void handle_OnRoot()
       }
       file.close();
     }
-    body.replace("<!--Mode-->", irrigationScheduleEnabled ? "Scheduled" : "Manual");
+    String modeStr = irrigationScheduleEnabled ? "Scheduled" : "Manual";
+    if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd)
+    {
+      unsigned long left = (irrigationManualEnd - millis()) / 1000;
+      char timeLeft[6];
+      snprintf(timeLeft, sizeof(timeLeft), "%02u:%02u", left / 60, left % 60);
+      modeStr += " (" + String(timeLeft) + " left)";
+    }
+    body.replace("<!--Mode-->", modeStr.c_str());
   }
   else
   {
@@ -527,18 +619,28 @@ void handle_OnToggleSwitch()
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Handle toggle", true, true);
   int ch = server.hasArg("ch") ? server.arg("ch").toInt() - 1 : -1;
+  int duration = server.hasArg("duration") ? server.arg("duration").toInt() : manualIrrigationDurationDef;
   if (ch < -1 || ch > 7)
   {
     screen->DisplayMessage("Invalid channel", true, true);
     server.send(400, "application/json", "{\"error\": \"Invalid channel\"}");
     return;
   }
+  if (duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
+  {
+    screen->DisplayMessage("Invalid duration", true, true);
+    server.send(400, "application/json", "{\"error\": \"Invalid duration\"}");
+    return;
+  }
+
+  irrigationManualEnd = 0;
 
   if (ch == -1)
   {
     irrigationScheduleEnabled = true;
     server.send(200, "application/json", "{\"status\": \"OK\", \"mode\": \"scheduled\", \"enabled\": " + String(irrigationScheduleEnabled) + "}");
     screen->DisplayMessage("Finished on: all", true, true);
+    sendMQTTMessage("irrigation/status/scheduled");
     return;
   }
 
@@ -552,10 +654,14 @@ void handle_OnToggleSwitch()
       digitalWrite(schedules.getPin(i), HIGH);
     }
     digitalWrite(pin, LOW);
+    irrigationManualEnd = millis() + duration * 60 * 1000;
+    screen->DisplayMessage("Channel " + String(ch + 1) + " started for " + String(duration) + " minutes", true, true);
+    sendMQTTMessage("irrigation/channel" + String(ch + 1) + "/status/on");
   }
   else
   {
     digitalWrite(pin, HIGH);
+    sendMQTTMessage("irrigation/channel" + String(ch + 1) + "/status/off");
   }
   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
   server.send(200, "application/json",
@@ -626,6 +732,26 @@ void handleRotary()
   }
 }
 
+void sendMQTTMessage(String payload)
+{
+  if(!mqttConfig.isValid()){
+    screen->DisplayMessage("MQTT not configured", true, true);
+    return;
+  }
+  if (!mqttClient.connected())
+  {
+    if (!mqttClient.connect(mqttConfig.clientId, mqttConfig.username, mqttConfig.password))
+    {
+      screen->DisplayMessage("MQTT connect failed", true, true);
+      return;
+    }
+  }
+  if (!mqttClient.publish(mqttConfig.topic, payload.c_str()))
+  {
+    screen->DisplayMessage("MQTT send failed", true, true);
+  }
+}
+
 // ##################################################################################################
 // ##      ##       ###       ####      ###      ####      ###        ###      ###      ###  ####  ##
 // ####  ####  ####  ##  ####  #####  ####  ########  ####  #####  ########  ####  ####  ##    ##  ##
@@ -637,58 +763,75 @@ void handleRotary()
 // Irrigation
 void ManageIrrigation()
 {
-  // return if interval not reached
-  if (!irrigationScheduleEnabled || millis() - irrigationLastCheck < irrigationCheckInterval)
+  if (irrigationScheduleEnabled)
   {
-    return;
-  }
-  irrigationLastCheck = millis();
-
-  DateTime now = rtc.now();
-  int currentTime = (now.hour() * 3600) + (now.minute() * 60) + now.second();
-  int dayOfYear = // precise counting day of year (1-365)
-      (now.year() - 1970) * 365 + (now.year() - 1969) / 4 - (now.year() - 1901) / 100 + (now.year() - 1601) / 400;
-
-  int channelToStart = -1;
-  for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
-  {
-    IrrigationSchedule schedule = schedules.getSchedule(i);
-    if (!schedule.isValidForDay(now))
+    if (millis() - irrigationLastCheck < irrigationCheckInterval)
     {
-      continue;
+      return;
     }
-    int startTime = schedule.getStartTime() * 60;
-    for (int j = 0; j < schedules.getNumberOfChannels(); j++)
+    irrigationLastCheck = millis();
+
+    DateTime now = rtc.now();
+    int currentTime = (now.hour() * 3600) + (now.minute() * 60) + now.second();
+    int dayOfYear = // precise counting day of year (1-365)
+        (now.year() - 1970) * 365 + (now.year() - 1969) / 4 - (now.year() - 1901) / 100 + (now.year() - 1601) / 400;
+
+    int channelToStart = -1;
+    for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
     {
-      int endTime = startTime + 60 * schedule.getChannelDuration(j);
-      if (currentTime >= startTime && currentTime < endTime)
+      IrrigationSchedule schedule = schedules.getSchedule(i);
+      if (!schedule.isValidForDay(now))
       {
-        channelToStart = j;
-        break;
+        continue;
       }
-      startTime = endTime;
+      int startTime = schedule.getStartTime() * 60;
+      for (int j = 0; j < schedules.getNumberOfChannels(); j++)
+      {
+        int endTime = startTime + 60 * schedule.getChannelDuration(j);
+        if (currentTime >= startTime && currentTime < endTime)
+        {
+          channelToStart = j;
+          break;
+        }
+        startTime = endTime;
+      }
+    }
+
+    for (int i = 0; i < irrigationChannelNumber; i++)
+    {
+      if (i != channelToStart)
+      {
+        if (digitalRead(schedules.getPin(i)) == LOW)
+        {
+          digitalWrite(schedules.getPin(i), HIGH);
+          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+          screen->DisplayMessage("Channel " + String(i + 1) + " stopped", true, true);
+          sendMQTTMessage("irrigation/channel" + String(i + 1) + "/status/off");
+        }
+      }
+      else
+      {
+        if (digitalRead(schedules.getPin(i)) == HIGH)
+        {
+          digitalWrite(schedules.getPin(i), LOW);
+          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+          screen->DisplayMessage("Channel " + String(i + 1) + " started", true, true);
+          sendMQTTMessage("irrigation/channel" + String(i + 1) + "/status/on");
+        }
+      }
     }
   }
-
-  for (int i = 0; i < irrigationChannelNumber; i++)
+  else
   {
-    if (i != channelToStart)
+    if (irrigationManualEnd > 0 && millis() > irrigationManualEnd)
     {
-      if (digitalRead(schedules.getPin(i)) == LOW)
+      for (int i = 0; i < irrigationChannelNumber; i++)
       {
         digitalWrite(schedules.getPin(i), HIGH);
-        displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-        screen->DisplayMessage("Channel " + String(i + 1) + " stopped", true, true);
       }
-    }
-    else
-    {
-      if (digitalRead(schedules.getPin(i)) == HIGH)
-      {
-        digitalWrite(schedules.getPin(i), LOW);
-        displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-        screen->DisplayMessage("Channel " + String(i + 1) + " started", true, true);
-      }
+      screen->DisplayMessage("Manual irrigation ended", true, true);
+      sendMQTTMessage("irrigation/manual/status/off");
+      irrigationManualEnd = 0;
     }
   }
 }
@@ -729,22 +872,28 @@ void setup()
 
   InitializeSchedules();
 
-  Serial.println("Starting menu");
   menu = new Menu();
   menu->renderer.begin();
   menu->GenerateIrrigationSubmenu();
   menu->GenerateManualScreen();
-  menu->menu.setScreen(mainScreen);
+  menu->menu.setScreen(mainScreen, false);
   menu->menu.hide();
-  Serial.println("Menu started");
 
   if (wifiConnected)
   {
     InitializeOTA();
+    if (readMqttCredentials() && mqttConfig.isValid())
+    {
+      InitializeMQTT();
+    }
+    else
+    {
+      screen->DisplayMessage("No MQTT credentials", true, true);
+    }
   }
   else
   {
-    screen->DisplayMessage("OTA not started", true, true);
+    screen->DisplayMessage("OTA, MQTT not started", true, true);
   }
 }
 
@@ -844,6 +993,16 @@ void toggleChannel(int channel)
       for (int i = 0; i < irrigationChannelNumber; i++)
       {
         digitalWrite(schedules.getPin(i), HIGH);
+      }
+      int duration = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<uint8_t> *>(manualScreen->getItemAt(0))->getWidgetAt(0))->getValue();
+      if (duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
+      {
+        screen->DisplayMessage("Invalid duration", true, true);
+      }
+      else
+      {
+        irrigationManualEnd = millis() + duration * 60 * 1000;
+        screen->DisplayMessage("Channel " + String(channel + 1) + " started for " + String(duration) + " minutes", true, true);
       }
       digitalWrite(pin, LOW);
     }

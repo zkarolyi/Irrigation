@@ -41,10 +41,9 @@ class Menu
 extern void toggleChannel(int channel);
 extern void toggleCallback(bool isOn, int index);
 extern void exitMenuCallback();
-extern void inputSsidCallback(char *value);
-extern void inputPwdCallback(char *value);
 extern void commandWifiCallback();
 extern void wifiInformationCallback();
+extern void commandMqttCallback();
 extern void resetScreenCallback();
 extern void resetRtcCallback();
 extern void commandScheduleSelectCallback(int scheduleIndex);
@@ -60,5 +59,6 @@ extern MenuScreen* scheduleViewScreen;
 extern MenuScreen* scheduleEditScreen;
 extern MenuScreen* settingsScreen;
 extern MenuScreen* wifiSettingsScreen;
+extern MenuScreen* mqttSettingsScreen;
 
 #endif // MENU_H
