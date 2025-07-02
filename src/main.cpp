@@ -30,8 +30,8 @@ bool isMenuActive = false;
 std::vector<int> relayPins = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4, RELAY_PIN_5, RELAY_PIN_6, RELAY_PIN_7, RELAY_PIN_8};
 
 MqttConfig mqttConfig = {
-  .topic = mqttTopic,
-  .clientId = mqttClientId,
+    .topic = mqttTopic,
+    .clientId = mqttClientId,
 };
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
@@ -734,7 +734,8 @@ void handleRotary()
 
 void sendMQTTMessage(String payload)
 {
-  if(!mqttConfig.isValid()){
+  if (!mqttConfig.isValid())
+  {
     screen->DisplayMessage("MQTT not configured", true, true);
     return;
   }
@@ -772,29 +773,43 @@ void ManageIrrigation()
     irrigationLastCheck = millis();
 
     DateTime now = rtc.now();
-    int currentTime = (now.hour() * 3600) + (now.minute() * 60) + now.second();
-    int dayOfYear = // precise counting day of year (1-365)
-        (now.year() - 1970) * 365 + (now.year() - 1969) / 4 - (now.year() - 1901) / 100 + (now.year() - 1601) / 400;
-
+    unsigned long nowU = now.unixtime();
     int channelToStart = -1;
+
     for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
     {
       IrrigationSchedule schedule = schedules.getSchedule(i);
-      if (!schedule.isValidForDay(now))
+
+      // Check both yesterday and today for schedules that might have started yesterday
+      // and are still running today.
+      for (int dayOffset = -1; dayOffset <= 0; dayOffset++)
       {
-        continue;
-      }
-      int startTime = schedule.getStartTime() * 60;
-      for (int j = 0; j < schedules.getNumberOfChannels(); j++)
-      {
-        int endTime = startTime + 60 * schedule.getChannelDuration(j);
-        if (currentTime >= startTime && currentTime < endTime)
+        DateTime checkDay = now + TimeSpan(86400 * dayOffset);
+        if (!schedule.isValidForDay(checkDay))
+          continue;
+
+        DateTime dayStart(checkDay.year(), checkDay.month(), checkDay.day(), 0, 0, 0);
+        unsigned long startTimeU = dayStart.unixtime() + schedule.getStartTime() * 60;
+
+        for (int j = 0; j < schedules.getNumberOfChannels(); j++)
         {
-          channelToStart = j;
-          break;
+          unsigned long endTimeU = startTimeU + (schedule.getChannelDuration(j) * schedule.getWeight() *60 + 50) / 100;
+
+          if (nowU >= startTimeU && nowU < endTimeU)
+          {
+            channelToStart = j;
+            break;
+          }
+
+          startTimeU = endTimeU;
         }
-        startTime = endTime;
+
+        if (channelToStart != -1)
+          break;
       }
+
+      if (channelToStart != -1)
+        break;
     }
 
     for (int i = 0; i < irrigationChannelNumber; i++)

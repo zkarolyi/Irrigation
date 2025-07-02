@@ -95,6 +95,5 @@ private:
 
 String convertToJson(const IrrigationSchedules &schedules);
 bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules);
-int dayOfYear(DateTime dt);
 
 #endif // IRRIGATION_H

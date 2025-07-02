@@ -100,7 +100,8 @@ bool IrrigationSchedule::isValidForDay(DateTime date) const
     {
         return true;
     }
-    int day = dayOfYear(date);
+    int day = date.unixtime() / 86400; // get number of days since epoch
+
     if (daysToRun == 1)  // Odd days
     {
         return day % 2 != 0;
@@ -253,16 +254,16 @@ bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules)
     return true;
 }
 
-int dayOfYear(DateTime dt) {
-    static const int daysPerMonth[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
-    int num = dt.day();
-    for (int i = 0; i < dt.month() - 1; i++) {
-        num += daysPerMonth[i];
-    }
-    if (dt.month() > 2 && dt.year() % 4 == 0 && 
-       (dt.year() % 100 != 0 || dt.year() % 400 == 0)) {
-        num += 1;
-    }
+// int dayOfYear(DateTime dt) {
+//     static const int daysPerMonth[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+//     int num = dt.day();
+//     for (int i = 0; i < dt.month() - 1; i++) {
+//         num += daysPerMonth[i];
+//     }
+//     if (dt.month() > 2 && dt.year() % 4 == 0 && 
+//        (dt.year() % 100 != 0 || dt.year() % 400 == 0)) {
+//         num += 1;
+//     }
 
-    return num;
-}
+//     return num;
+// }
