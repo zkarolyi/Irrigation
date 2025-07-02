@@ -5,6 +5,7 @@
 #include <vector>
 #include <ArduinoJson.h>
 #include <RTClib.h>
+#include "settings.h"
 
 const int irrigationChannelNumber = 8;
 
@@ -12,7 +13,7 @@ const int irrigationChannelNumber = 8;
 // StartTime (hh:mm or disabled)
 // weight (0-200% in 10% increments)
 // Days to run on (0-6, all, odd, even, interval (1-10))
-// Channel durations (0-60 minutes in 1 minute increments)
+// Channel durations (0-90 minutes in 1 minute increments)
 
 const std::vector<const char*> daysToRunValues = {
     "All",

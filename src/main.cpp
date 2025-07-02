@@ -488,7 +488,7 @@ void handle_OnSetSchedule()
   for (int i = 0; i < irrigationChannelNumber; i++)
   {
     String argName = "duration" + String(i + 1);
-    if (!server.hasArg(argName) || server.arg(argName).length() == 0 || server.arg(argName).toInt() < 0 || server.arg(argName).toInt() > 60)
+    if (!server.hasArg(argName) || server.arg(argName).length() == 0 || server.arg(argName).toInt() < manualIrrigationDurationMin || server.arg(argName).toInt() > manualIrrigationDurationMax)
     {
       screen->DisplayMessage("Invalid duration", true, true);
       server.send(400, "text/html", "Invalid duration" + String(i + 1));

@@ -89,7 +89,7 @@ void Menu::GenerateIrrigationSubmenu()
     for (int i = 0; i < numberOfSchedules; i++)
     {
         IrrigationSchedule sc = schedules.getSchedule(i);
-        String itemName = String(i + 1) + "." + sc.getStartTimeString() + (sc.isValidForDay(now) ? "+" : "-") + daysToRunValues[sc.getDaysToRun()];
+        String itemName = String(i + 1) + "." + sc.getStartTimeString() + "-" + daysToRunValues[sc.getDaysToRun()];
         schedulesScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, commandScheduleSelectCallback));
     }
     schedulesScreen->addItem(new ItemCommandInt("Add schedule", -1, commandScheduleEditCallback));
@@ -156,7 +156,7 @@ void Menu::GenerateScheduleEditSubmenu(int scheduleIndex)
     for (int i = 0; i < numberOfChannels; i++)
     {
         String itemName = "Ch" + String(i + 1);
-        scheduleEditScreen->addItem(new ItemWidget<int>(strdup(itemName.c_str()), new WidgetRange<int>(schedule.getChannelDuration(i), 1, 0, 60, " %d min", 4, false), nullptr));
+        scheduleEditScreen->addItem(new ItemWidget<int>(strdup(itemName.c_str()), new WidgetRange<int>(schedule.getChannelDuration(i), 1, manualIrrigationDurationMin, manualIrrigationDurationMax, " %d min", 4, false), nullptr));
     }
     scheduleEditScreen->addItem(new ItemCommandInt("Save", scheduleIndex, commandScheduleSaveCallback));
     scheduleEditScreen->addItem(new ItemCommandInt("Delete", scheduleIndex, commandScheduleDeleteCallback));

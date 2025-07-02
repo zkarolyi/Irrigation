@@ -96,49 +96,49 @@
                         1. None
                     </div>
                     <div>
-                        <input type="number" id="duration1" name="duration1" min="0" max="60" value="${duration1}">
+                        <input type="number" id="duration1" name="duration1" min="0" max="90" value="${duration1}">
                     </div>
                     <div class="listItemName">
                         2. None
                     </div>
                     <div>
-                        <input type="number" id="duration2" name="duration2" min="0" max="60" value="${duration2}">
+                        <input type="number" id="duration2" name="duration2" min="0" max="90" value="${duration2}">
                     </div>
                     <div class="listItemName">
                         3. None
                     </div>
                     <div>
-                        <input type="number" id="duration3" name="duration3" min="0" max="60" value="${duration3}">
+                        <input type="number" id="duration3" name="duration3" min="0" max="90" value="${duration3}">
                     </div>
                     <div class="listItemName">
                         4. None
                     </div>
                     <div>
-                        <input type="number" id="duration4" name="duration4" min="0" max="60" value="${duration4}">
+                        <input type="number" id="duration4" name="duration4" min="0" max="90" value="${duration4}">
                     </div>
                     <div class="listItemName">
                         5. None
                     </div>
                     <div>
-                        <input type="number" id="duration5" name="duration5" min="0" max="60" value="${duration5}">
+                        <input type="number" id="duration5" name="duration5" min="0" max="90" value="${duration5}">
                     </div>
                     <div class="listItemName">
                         6. None
                     </div>
                     <div>
-                        <input type="number" id="duration6" name="duration6" min="0" max="60" value="${duration6}">
+                        <input type="number" id="duration6" name="duration6" min="0" max="90" value="${duration6}">
                     </div>
                     <div class="listItemName">
                         7. None
                     </div>
                     <div>
-                        <input type="number" id="duration7" name="duration7" min="0" max="60" value="${duration7}">
+                        <input type="number" id="duration7" name="duration7" min="0" max="90" value="${duration7}">
                     </div>
                     <div class="listItemName">
                         8. None
                     </div>
                     <div>
-                        <input type="number" id="duration8" name="duration8" min="0" max="60" value="${duration8}">
+                        <input type="number" id="duration8" name="duration8" min="0" max="90" value="${duration8}">
                     </div>
                 </div>
                 <div class="buttonLine">

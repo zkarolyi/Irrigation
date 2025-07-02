@@ -17,8 +17,8 @@ const unsigned long DISPLAY_LAST_UPDATE_INTERVAL = 300; // 300 milliseconds
 
 const unsigned long TIMER_TIMEOUT_INTERVAL = 1000 * 60 * 60; // 1 hour
 
-const int manualIrrigationDurationMin = 1;
-const int manualIrrigationDurationMax = 60;
+const int manualIrrigationDurationMin = 0;
+const int manualIrrigationDurationMax = 90;
 const int manualIrrigationDurationDef = 20;
 
 constexpr const char* mqttTopic = "Irrigation/";

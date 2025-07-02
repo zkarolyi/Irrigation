@@ -17,7 +17,7 @@ IrrigationSchedule::IrrigationSchedule()
 // Add a channel duration
 bool IrrigationSchedule::addChannelDuration(int channel, int duration)
 {
-    if (channel < 0 || channel >= irrigationChannelNumber || duration < 0 || duration > 60)
+    if (channel < 0 || channel >= irrigationChannelNumber || duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
     {
         return false;
     }
