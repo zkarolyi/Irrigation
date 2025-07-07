@@ -16,6 +16,8 @@ MenuScreen *manualScreen; // dinamically generated
 
 MenuScreen *schedulesScreen; // dinamically generated
 
+MenuScreen *scheduleDaysScreen; // dinamically generated
+
 MenuScreen *scheduleViewScreen; // dinamically generated
 
 MenuScreen *scheduleEditScreen; // dinamically generated

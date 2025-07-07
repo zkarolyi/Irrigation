@@ -84,8 +84,6 @@ void Menu::GenerateIrrigationSubmenu()
 
     int numberOfSchedules = schedules.getNumberOfSchedules();
 
-    DateTime now = rtc.now();
-
     for (int i = 0; i < numberOfSchedules; i++)
     {
         IrrigationSchedule sc = schedules.getSchedule(i);
@@ -93,8 +91,42 @@ void Menu::GenerateIrrigationSubmenu()
         schedulesScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, commandScheduleSelectCallback));
     }
     schedulesScreen->addItem(new ItemCommandInt("Add schedule", -1, commandScheduleEditCallback));
+    schedulesScreen->addItem(new ItemCommand("View schedule days", ShowScheduleDaysSubmenuCallback));
     schedulesScreen->addItem(new ItemBack("Back"));
     Serial.println("Irrigation submenu generated with " + String(numberOfSchedules) + " schedules");
+}
+
+void Menu::GenerateScheduleDaysSubmenu()
+{
+    Serial.println("Generating schedule days submenu");
+    if (scheduleDaysScreen == nullptr)
+    {
+        scheduleDaysScreen = new MenuScreen(std::vector<MenuItem *>{});
+        scheduleDaysScreen->setParent(schedulesScreen);
+        Serial.println("Created new schedule days screen");
+    }
+    else
+    {
+        DeleteScreenItems(scheduleDaysScreen);
+    }
+
+    DateTime now = rtc.now();
+
+    int numberOfSchedules = schedules.getNumberOfSchedules();
+
+    for (int i = 0; i < numberOfSchedules; i++)
+    {
+        IrrigationSchedule sc = schedules.getSchedule(i);
+        String itemName = String(i + 1) + ". ";
+        for (int j = 0; j < 5; j++)
+        {
+            itemName += isValidForDayRun(now + TimeSpan(j, 0, 0, 0), sc.getDaysToRun()) ? "+" : "-";
+        }
+        itemName += " " + String(daysToRunValues[sc.getDaysToRun()]);
+        scheduleDaysScreen->addItem(new MenuItem(strdup(itemName.c_str())));
+    }
+    scheduleDaysScreen->addItem(new ItemBack("Back"));
+    Serial.println("Schedule days submenu generated");
 }
 
 void Menu::GenerateScheduleViewSubmenu(int scheduleIndex)

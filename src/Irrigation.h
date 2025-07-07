@@ -93,6 +93,7 @@ private:
     int irrigationRelayPins[irrigationChannelNumber];
 };
 
+bool isValidForDayRun(DateTime date, int dayToRun);
 String convertToJson(const IrrigationSchedules &schedules);
 bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules);
 

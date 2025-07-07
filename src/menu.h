@@ -30,6 +30,7 @@ class Menu
     SimpleRotary encoder;
     void GenerateManualScreen();
     void GenerateIrrigationSubmenu();
+    void GenerateScheduleDaysSubmenu();
     void GenerateScheduleViewSubmenu(int scheduleIndex);
     void GenerateScheduleEditSubmenu(int scheduleIndex);
   private:
@@ -50,11 +51,13 @@ extern void commandScheduleSelectCallback(int scheduleIndex);
 extern void commandScheduleEditCallback(int scheduleIndex);
 extern void commandScheduleDeleteCallback(int scheduleIndex);
 extern void commandScheduleSaveCallback(int scheduleIndex);
+extern void ShowScheduleDaysSubmenuCallback();
 
 // Screens
 extern MenuScreen* mainScreen;
 extern MenuScreen* manualScreen;
 extern MenuScreen* schedulesScreen;
+extern MenuScreen* scheduleDaysScreen;
 extern MenuScreen* scheduleViewScreen;
 extern MenuScreen* scheduleEditScreen;
 extern MenuScreen* settingsScreen;

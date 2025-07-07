@@ -96,21 +96,7 @@ int IrrigationSchedule::getWeight() const
 // Check if schedule is valid for the given day
 bool IrrigationSchedule::isValidForDay(DateTime date) const
 {
-    if (daysToRun == 0)  // All days
-    {
-        return true;
-    }
-    int day = date.unixtime() / 86400; // get number of days since epoch
-
-    if (daysToRun == 1)  // Odd days
-    {
-        return day % 2 != 0;
-    }
-    if (daysToRun >= 2 && daysToRun <= 7)  // Every N days
-    {
-        return day % (daysToRun) == 0;
-    }
-    return false;
+    return isValidForDayRun(date, daysToRun);
 }
 
 // -----------------------------------------
@@ -190,6 +176,26 @@ void IrrigationSchedules::removeSchedule(int index)
 void IrrigationSchedules::clearSchedules()
 {
     schedules.clear();
+}
+
+// Check if the schedule is valid for the given day
+bool isValidForDayRun(DateTime date, int dayToRun)
+{
+   if (dayToRun == 0)  // All days
+    {
+        return true;
+    }
+    int day = date.unixtime() / 86400; // get number of days since epoch
+
+    if (dayToRun == 1)  // Odd days
+    {
+        return day % 2 != 0;
+    }
+    if (dayToRun >= 2 && dayToRun <= 7)  // Every N days
+    {
+        return day % (dayToRun) == 0;
+    }
+    return false;
 }
 
 // Convert schedules to JSON

@@ -17,6 +17,7 @@ extern RTC_DS3231 rtc;
 extern IrrigationSchedules schedules;
 extern bool irrigationScheduleEnabled;
 extern int irrigationManualEnd;
+extern bool isValidForDayRun(DateTime date, int dayToRun);
 extern int displayNetworkActivity;
 extern int displayOutChange;
 extern void SaveSchedules(IrrigationSchedules &schedules);

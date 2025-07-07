@@ -1094,3 +1094,10 @@ void commandScheduleDeleteCallback(int scheduleIndex)
   exitMenuCallback();
   Serial.printf("Delete schedule %d\n", scheduleIndex);
 }
+
+void ShowScheduleDaysSubmenuCallback()
+{
+    Serial.println("Showing schedule days submenu");
+    menu->GenerateScheduleDaysSubmenu();
+    menu->menu.setScreen(scheduleDaysScreen);
+}
