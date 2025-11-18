@@ -34,9 +34,4 @@ const int RELAY_PIN_7 = 14;
 const int RELAY_PIN_8 = 12;
 // std::vector<int> relayPins = {12, 14, 27, 26, 25, 23, 32, 13};
 
-// #ifdef DOUBLE_PRESS_THRESHOLD
-// #undef DOUBLE_PRESS_THRESHOLD
-// #endif
-// #define DOUBLE_PRESS_THRESHOLD 500
-
 #endif // PARAMETERS_H

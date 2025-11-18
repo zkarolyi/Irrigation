@@ -259,17 +259,3 @@ bool convertFromJson(const String &jsonString, IrrigationSchedules &schedules)
 
     return true;
 }
-
-// int dayOfYear(DateTime dt) {
-//     static const int daysPerMonth[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
-//     int num = dt.day();
-//     for (int i = 0; i < dt.month() - 1; i++) {
-//         num += daysPerMonth[i];
-//     }
-//     if (dt.month() > 2 && dt.year() % 4 == 0 && 
-//        (dt.year() % 100 != 0 || dt.year() % 400 == 0)) {
-//         num += 1;
-//     }
-
-//     return num;
-// }
