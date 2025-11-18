@@ -62,9 +62,10 @@ void Menu::GenerateManualScreen()
     for (int i = 0; i < numberOfChannels; i++)
     {
         String itemName = "Ch" + String(i + 1) + " toggle";
-        manualScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, toggleChannel));
+        manualScreen->addItem(new ItemCommandInt(strdup(itemName.c_str()), i, toggleChannelCallback));
     }
-    manualScreen->addItem(new ItemCommandInt("Schedule On", -1, toggleChannel));
+    manualScreen->addItem(new ItemCommandInt("All off", -1, toggleChannelCallback));
+    manualScreen->addItem(new ItemCommand("Set scheduled", setScheduledCallback));
     manualScreen->addItem(new ItemBack("Back"));
     Serial.println("Manual screen generated with " + String(numberOfChannels) + " channels");
 }

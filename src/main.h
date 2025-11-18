@@ -1,5 +1,6 @@
 void handle_OnRoot();
 void handle_OnToggleSwitch();
+void handle_OnSetScheduled();
 void handle_NotFound();
 void InitFS();
 
@@ -28,7 +29,11 @@ struct MqttConfig {
   }
 };
 extern MqttConfig mqttConfig;
-void sendMQTTMessage(String payload);
+void sendMQTTMessage(String path, String payload);
+void mqttMessageHandler(char *topic, byte *payload, unsigned int length);
+void startChannel(int channel, int duration);
+void stopChannel(int channel);
+void toggleChannel(int channel, int duration);
 
 bool irrigationScheduleEnabled = true;
 int irrigationCheckInterval = 10000;

@@ -21,7 +21,7 @@ const int manualIrrigationDurationMin = 0;
 const int manualIrrigationDurationMax = 90;
 const int manualIrrigationDurationDef = 20;
 
-constexpr const char* mqttTopic = "Irrigation/";
+constexpr const char* mqttTopic = "irrigation/";
 constexpr const char* mqttClientId = "IrrigationController";
 
 const int RELAY_PIN_1 = 13;
@@ -34,9 +34,9 @@ const int RELAY_PIN_7 = 14;
 const int RELAY_PIN_8 = 12;
 // std::vector<int> relayPins = {12, 14, 27, 26, 25, 23, 32, 13};
 
-#ifdef DOUBLE_PRESS_THRESHOLD
-#undef DOUBLE_PRESS_THRESHOLD
-#endif
-#define DOUBLE_PRESS_THRESHOLD 500
+// #ifdef DOUBLE_PRESS_THRESHOLD
+// #undef DOUBLE_PRESS_THRESHOLD
+// #endif
+// #define DOUBLE_PRESS_THRESHOLD 500
 
 #endif // PARAMETERS_H

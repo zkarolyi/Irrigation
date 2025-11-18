@@ -89,7 +89,8 @@
             </div>
         </div>
         <div class="buttonLine">
-            <button type="button" onclick="callToggleSwitch(0);">Schedule On</button>
+            <button type="button" onclick="callToggleSwitch(0);">All off</button>
+            <button type="button" onclick="callSetScheduled();">Schedule On</button>
             <button type="button" onclick="window.location.href='/ScheduleList';">Schedules</button>
         </div>
         <div class="footer">

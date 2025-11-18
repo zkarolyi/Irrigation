@@ -35,6 +35,7 @@ MqttConfig mqttConfig = {
 };
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
+bool mqttSubscribed = false;
 
 // ##########################################
 // ###      ###  ####  ###      ###        ##
@@ -121,6 +122,7 @@ void InitializeWebServer()
 {
   server.on("/", handle_OnRoot);
   server.on("/ToggleSwitch", HTTP_GET, handle_OnToggleSwitch);
+  server.on("/SetScheduled", HTTP_GET, handle_OnSetScheduled);
   server.on("/Schedule", HTTP_GET, handle_OnGetSchedule);
   server.on("/Schedule", HTTP_POST, handle_OnSetSchedule);
   server.on("/SetDimming", HTTP_GET, handle_OnSetDimming);
@@ -200,6 +202,8 @@ void InitializeRTC()
 void InitializeMQTT()
 {
   mqttClient.setServer(mqttConfig.broker, mqttConfig.port);
+  // Set callback for incoming MQTT messages (commands)
+  mqttClient.setCallback(mqttMessageHandler);
 }
 
 // ##########################################
@@ -633,40 +637,64 @@ void handle_OnToggleSwitch()
     return;
   }
 
-  irrigationManualEnd = 0;
+  toggleChannel(ch, duration);
 
-  if (ch == -1)
-  {
-    irrigationScheduleEnabled = true;
-    server.send(200, "application/json", "{\"status\": \"OK\", \"mode\": \"scheduled\", \"enabled\": " + String(irrigationScheduleEnabled) + "}");
-    screen->DisplayMessage("Finished on: all", true, true);
-    sendMQTTMessage("irrigation/status/scheduled");
-    return;
-  }
-
-  irrigationScheduleEnabled = false;
-  int pin = schedules.getPin(ch);
-
-  if (digitalRead(pin) == HIGH)
-  {
-    for (int i = 0; i < irrigationChannelNumber; i++)
-    {
-      digitalWrite(schedules.getPin(i), HIGH);
-    }
-    digitalWrite(pin, LOW);
-    irrigationManualEnd = millis() + duration * 60 * 1000;
-    screen->DisplayMessage("Channel " + String(ch + 1) + " started for " + String(duration) + " minutes", true, true);
-    sendMQTTMessage("irrigation/channel" + String(ch + 1) + "/status/on");
-  }
-  else
-  {
-    digitalWrite(pin, HIGH);
-    sendMQTTMessage("irrigation/channel" + String(ch + 1) + "/status/off");
-  }
-  displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
   server.send(200, "application/json",
-              "{\"status\": \"OK\", \"channel\": " + String(ch + 1) + ", \"pin\": " + String(pin) + "}");
+              "{\"status\": \"OK\", \"channel\": " + String(ch + 1) + "}");
   screen->DisplayMessage("Finished on: " + String(ch), true, true);
+
+  // irrigationManualEnd = 0;
+
+  // if (ch == -1)
+  // {
+  //   irrigationScheduleEnabled = true;
+  //   server.send(200, "application/json", "{\"status\": \"OK\", \"mode\": \"scheduled\", \"enabled\": " + String(irrigationScheduleEnabled) + "}");
+  //   screen->DisplayMessage("Finished on: all", true, true);
+  //   sendMQTTMessage("status/scheduled", "");
+  //   return;
+  // }
+
+  // irrigationScheduleEnabled = false;
+  // int pin = schedules.getPin(ch);
+
+  // if (digitalRead(pin) == HIGH)
+  // {
+  //   for (int i = 0; i < irrigationChannelNumber; i++)
+  //   {
+  //     if (i != ch)
+  //     {
+  //       if(digitalRead(schedules.getPin(i)) == LOW)
+  //       {
+  //         digitalWrite(schedules.getPin(i), HIGH);
+  //         sendMQTTMessage("status/channel" + String(i + 1), "off");
+  //       }
+  //     }
+  //     else
+  //     {
+  //       digitalWrite(schedules.getPin(i), LOW);
+  //       sendMQTTMessage("status/channel" + String(i + 1), "on");
+  //     }
+  //   }
+  //   irrigationManualEnd = millis() + duration * 60 * 1000;
+  //   screen->DisplayMessage("Channel " + String(ch + 1) + " started for " + String(duration) + " minutes", true, true);
+  // }
+  // else
+  // {
+  //   digitalWrite(pin, HIGH);
+  //   sendMQTTMessage("status/channel" + String(ch + 1), "off");
+  // }
+}
+
+void handle_OnSetScheduled()
+{
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
+  screen->DisplayMessage("Handle set scheduled", true, true);
+
+  irrigationScheduleEnabled = true;
+  server.send(200, "application/json",
+              "{\"status\": \"OK\", \"scheduled\": true}");
+  screen->DisplayMessage("Finished on set scheduled", true, true);
+  sendMQTTMessage("status/scheduled", "on");
 }
 
 void handle_NotFound()
@@ -732,7 +760,8 @@ void handleRotary()
   }
 }
 
-void sendMQTTMessage(String payload)
+// MQTT Handlers
+void sendMQTTMessage(String path, String payload)
 {
   if (!mqttConfig.isValid())
   {
@@ -747,9 +776,152 @@ void sendMQTTMessage(String payload)
       return;
     }
   }
-  if (!mqttClient.publish(mqttConfig.topic, payload.c_str()))
+  String topic = String(mqttConfig.topic) + path;
+  if (!mqttClient.publish(topic.c_str(), payload.c_str()))
   {
     screen->DisplayMessage("MQTT send failed", true, true);
+  }
+}
+
+void mqttMessageHandler(char *topic, byte *payload, unsigned int length)
+{
+  String t = String(topic);
+  String pl;
+  for (unsigned int i = 0; i < length; i++)
+    pl += (char)payload[i];
+  pl.trim();
+  screen->DisplayMessage("MQTT recv: " + t + " -> " + pl, true, true);
+
+  int idx = t.indexOf("/command/");
+  if (idx < 0)
+    return;
+  String cmd = t.substring(idx + 9); // after /command/
+  // Expected: channelN or all
+  if (cmd.startsWith("channel"))
+  {
+    int ch = cmd.substring(7).toInt() - 1; // channel1 -> index 0
+    if (ch < 0 || ch >= irrigationChannelNumber)
+    {
+      screen->DisplayMessage("Invalid MQTT channel", true, true);
+      return;
+    }
+    if (pl.equalsIgnoreCase("ON"))
+    {
+      int duration = manualIrrigationDurationDef;
+      startChannel(ch, duration);
+    }
+    else if (pl.equalsIgnoreCase("OFF"))
+    {
+      stopChannel(ch);
+    }
+    else
+    {
+      int duration = pl.toInt();
+      if (duration > 0)
+        startChannel(ch, duration);
+    }
+  }
+  else if (cmd.equalsIgnoreCase("OFF") && pl.equalsIgnoreCase("ON"))
+  {
+    stopChannel(-1);
+    sendMQTTMessage("status/off", "off");
+  }
+  else if (cmd.equalsIgnoreCase("SCHEDULED"))
+  {
+    irrigationScheduleEnabled = pl.equalsIgnoreCase("ON");
+    screen->DisplayMessage("Irrigation set to scheduled mode", true, true);
+    sendMQTTMessage("status/scheduled", pl.equalsIgnoreCase("ON") ? "on" : "off");
+  }
+  else
+  {
+    screen->DisplayMessage("Unknown MQTT command", true, true);
+  }
+}
+
+// void startChannel(int channel, int duration)
+// {
+//   if (channel < 0 || channel >= irrigationChannelNumber)
+//   {
+//     screen->DisplayMessage("Invalid channel", true, true);
+//     return;
+//   }
+//   irrigationScheduleEnabled = false;
+//   sendMQTTMessage("status/scheduled", "off");
+//   // Turn off all channels first
+//   for (int i = 0; i < irrigationChannelNumber; i++)
+//   {
+//     if (i != channel)
+//     {
+//       if(digitalRead(schedules.getPin(i)) == LOW)
+//       {
+//         digitalWrite(schedules.getPin(i), HIGH);
+//         sendMQTTMessage("status/channel" + String(i + 1), "off");
+//       }
+//     }
+//     else
+//     {
+//       digitalWrite(schedules.getPin(i), LOW);
+//       sendMQTTMessage("status/channel" + String(i + 1), "on");
+//     }
+//   }
+//   irrigationManualEnd = millis() + duration * 60 * 1000;
+//   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+//   screen->DisplayMessage("Channel " + String(channel + 1) + " started for " + String(duration) + " minutes", true, true);
+// }
+
+// void stopChannel(int channel)
+// {
+//   if (channel < -1 || channel >= irrigationChannelNumber)
+//   {
+//     screen->DisplayMessage("Invalid channel", true, true);
+//     return;
+//   }
+//   if(channel == -1)
+//   {
+//     for (int i = 0; i < irrigationChannelNumber; i++)
+//     {
+//       if (digitalRead(schedules.getPin(i)) == LOW)
+//       {
+//         digitalWrite(schedules.getPin(i), HIGH);
+//         displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+//         sendMQTTMessage("status/channel" + String(i + 1), "off");
+//       }
+//     }
+//     screen->DisplayMessage("All channels stopped", true, true);
+//     irrigationManualEnd = 0;
+//     return;
+//   } 
+
+//   int pin = schedules.getPin(channel);
+//   digitalWrite(pin, HIGH);
+//   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+//   screen->DisplayMessage("Channel " + String(channel + 1) + " stopped", true, true);
+//   sendMQTTMessage("status/channel" + String(channel + 1), "off");
+// }
+
+void loopMQTT()
+{
+  if (mqttConfig.isValid())
+  {
+    if (!mqttClient.connected())
+    {
+      if (mqttClient.connect(mqttConfig.clientId, mqttConfig.username, mqttConfig.password))
+      {
+        screen->DisplayMessage("MQTT connected", true, true);
+        mqttSubscribed = false; // will subscribe below
+      }
+    }
+    if (mqttClient.connected())
+    {
+      if (!mqttSubscribed)
+      {
+        // Subscribe to command topic: e.g., Irrigation/command/#
+        String cmdTopic = String(mqttConfig.topic) + "command/#";
+        mqttClient.subscribe(cmdTopic.c_str());
+        mqttSubscribed = true;
+      }
+      mqttClient.loop();
+    }
   }
 }
 
@@ -793,7 +965,7 @@ void ManageIrrigation()
 
         for (int j = 0; j < schedules.getNumberOfChannels(); j++)
         {
-          unsigned long endTimeU = startTimeU + (schedule.getChannelDuration(j) * schedule.getWeight() *60 + 50) / 100;
+          unsigned long endTimeU = startTimeU + (schedule.getChannelDuration(j) * schedule.getWeight() * 60 + 50) / 100;
 
           if (nowU >= startTimeU && nowU < endTimeU)
           {
@@ -821,7 +993,7 @@ void ManageIrrigation()
           digitalWrite(schedules.getPin(i), HIGH);
           displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
           screen->DisplayMessage("Channel " + String(i + 1) + " stopped", true, true);
-          sendMQTTMessage("irrigation/channel" + String(i + 1) + "/status/off");
+          sendMQTTMessage("status/channel" + String(i + 1), "off");
         }
       }
       else
@@ -831,10 +1003,11 @@ void ManageIrrigation()
           digitalWrite(schedules.getPin(i), LOW);
           displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
           screen->DisplayMessage("Channel " + String(i + 1) + " started", true, true);
-          sendMQTTMessage("irrigation/channel" + String(i + 1) + "/status/on");
+          sendMQTTMessage("status/channel" + String(i + 1), "on");
         }
       }
     }
+    irrigationManualEnd = 0;
   }
   else
   {
@@ -842,13 +1015,104 @@ void ManageIrrigation()
     {
       for (int i = 0; i < irrigationChannelNumber; i++)
       {
-        digitalWrite(schedules.getPin(i), HIGH);
+        if (digitalRead(schedules.getPin(i)) == LOW)
+        {
+          digitalWrite(schedules.getPin(i), HIGH);
+          sendMQTTMessage("status/channel" + String(i + 1), "off");
+        }
       }
       screen->DisplayMessage("Manual irrigation ended", true, true);
-      sendMQTTMessage("irrigation/manual/status/off");
+      sendMQTTMessage("status/manual", "off");
       irrigationManualEnd = 0;
     }
   }
+}
+
+void startChannel(int channel, int duration)
+{
+  if (channel < 0 || channel >= irrigationChannelNumber)
+  {
+    screen->DisplayMessage("Invalid channel", true, true);
+    return;
+  }
+  irrigationScheduleEnabled = false;
+  sendMQTTMessage("status/scheduled", "off");
+
+  for (int i = 0; i < irrigationChannelNumber; i++)
+  {
+    if (i != channel)
+    {
+      if(digitalRead(schedules.getPin(i)) == LOW)
+      {
+        digitalWrite(schedules.getPin(i), HIGH);
+        sendMQTTMessage("status/channel" + String(i + 1), "off");
+      }
+    }
+    else
+    {
+      digitalWrite(schedules.getPin(i), LOW);
+      sendMQTTMessage("status/channel" + String(i + 1), "on");
+    }
+  }
+  irrigationManualEnd = millis() + duration * 60 * 1000;
+  displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+  screen->DisplayMessage("Channel " + String(channel + 1) + " started for " + String(duration) + " minutes", true, true);
+}
+
+void stopChannel(int channel)
+{
+  if (channel < -1 || channel >= irrigationChannelNumber)
+  {
+    screen->DisplayMessage("Invalid channel", true, true);
+    return;
+  }
+  if(channel == -1)
+  {
+    for (int i = 0; i < irrigationChannelNumber; i++)
+    {
+      if (digitalRead(schedules.getPin(i)) == LOW)
+      {
+        digitalWrite(schedules.getPin(i), HIGH);
+        sendMQTTMessage("status/channel" + String(i + 1), "off");
+      }
+    }
+    displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+    screen->DisplayMessage("All channels stopped", true, true);
+    irrigationManualEnd = 0;
+    return;
+  } 
+
+  digitalWrite(schedules.getPin(channel), HIGH);
+  displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+  screen->DisplayMessage("Channel " + String(channel + 1) + " stopped", true, true);
+  sendMQTTMessage("status/channel" + String(channel + 1), "off");
+}
+
+void toggleChannel(int channel, int duration)
+{
+  Serial.printf("Channel %d toggle start\n", channel);
+  screen->DisplayMessage("Handle toggle", true, true);
+  if(channel == -1)
+  {
+    stopChannel(-1);
+  } else if(digitalRead(schedules.getPin(channel)) == HIGH)
+  {
+    if (duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
+    {
+      screen->DisplayMessage("Invalid duration", true, true);
+    }
+    else
+    {
+      startChannel(channel, duration);
+    }
+  }
+  else
+  {
+    stopChannel(channel);
+  }
+
+  exitMenuCallback();
+
 }
 
 // ###########################################################################
@@ -893,6 +1157,7 @@ void setup()
   menu->GenerateManualScreen();
   menu->menu.setScreen(mainScreen, false);
   menu->menu.hide();
+  menu->encoder.setSwitchDebounceDelay(50);
 
   if (wifiConnected)
   {
@@ -929,6 +1194,7 @@ void loop()
   ManageIrrigation();
   if (isMenuActive)
   {
+    screen->DisplayActivate();
     menu->rotaryInput.observe();
   }
   else
@@ -939,6 +1205,7 @@ void loop()
   if (WiFi.status() == WL_CONNECTED)
   {
     server.handleClient();
+    loopMQTT();
     ArduinoOTA.handle();
   }
   handleTimer();
@@ -981,55 +1248,74 @@ void wifiInformationCallback()
   screen->DisplayMessage("Hostname: " + wifiHostname, true, true);
 }
 
-void toggleChannel(int channel)
+void toggleChannelCallback(int channel)
 {
   Serial.printf("Channel %d toggle start\n", channel);
   screen->DisplayMessage("Handle toggle", true, true);
-  if (channel < -1 || channel > 7)
-  {
-    screen->DisplayMessage("Invalid channel", true, true);
-    Serial.println("Invalid channel");
-    return;
-  }
 
-  if (channel == -1)
-  {
-    irrigationScheduleEnabled = true;
-    screen->DisplayMessage("Finished on: all", true, true);
-    Serial.println("All channels off, schedule enabled");
-  }
-  else
-  {
-    irrigationScheduleEnabled = false;
-    int pin = schedules.getPin(channel);
+  int duration = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<uint8_t> *>(manualScreen->getItemAt(0))->getWidgetAt(0))->getValue();
+  toggleChannel(channel, duration);
 
-    if (digitalRead(pin) == HIGH)
-    {
-      for (int i = 0; i < irrigationChannelNumber; i++)
-      {
-        digitalWrite(schedules.getPin(i), HIGH);
-      }
-      int duration = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<uint8_t> *>(manualScreen->getItemAt(0))->getWidgetAt(0))->getValue();
-      if (duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
-      {
-        screen->DisplayMessage("Invalid duration", true, true);
-      }
-      else
-      {
-        irrigationManualEnd = millis() + duration * 60 * 1000;
-        screen->DisplayMessage("Channel " + String(channel + 1) + " started for " + String(duration) + " minutes", true, true);
-      }
-      digitalWrite(pin, LOW);
-    }
-    else
-    {
-      digitalWrite(pin, HIGH);
-    }
-    displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-    screen->DisplayMessage("Finished on: " + String(channel), true, true);
-    Serial.printf("Channel %d toggled\n", channel);
-  }
+  exitMenuCallback();
 
+  // if (channel < -1 || channel > 7)
+  // {
+  //   screen->DisplayMessage("Invalid channel", true, true);
+  //   Serial.println("Invalid channel");
+  //   return;
+  // }
+
+  // if (channel == -1)
+  // {
+  //   irrigationScheduleEnabled = true;
+  //   sendMQTTMessage("status/scheduled", "on");
+  //   screen->DisplayMessage("Finished on: all", true, true);
+  //   Serial.println("All channels off, schedule enabled");
+  // }
+  // else
+  // {
+  //   irrigationScheduleEnabled = false;
+  //   sendMQTTMessage("status/scheduled", "off");
+  //   int pin = schedules.getPin(channel);
+
+  //   if (digitalRead(pin) == HIGH)
+  //   {
+  //     for (int i = 0; i < irrigationChannelNumber; i++)
+  //     {
+  //       if (i != channel && digitalRead(schedules.getPin(i)) == LOW)
+  //       {
+  //         digitalWrite(schedules.getPin(i), HIGH);
+  //         sendMQTTMessage("status/channel" + String(i + 1), "off");
+  //       }
+  //     }
+  //     int duration = static_cast<WidgetRange<int> *>(static_cast<ItemWidget<uint8_t> *>(manualScreen->getItemAt(0))->getWidgetAt(0))->getValue();
+  //     if (duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
+  //     {
+  //       screen->DisplayMessage("Invalid duration", true, true);
+  //     }
+  //     else
+  //     {
+  //       irrigationManualEnd = millis() + duration * 60 * 1000;
+  //       screen->DisplayMessage("Channel " + String(channel + 1) + " started for " + String(duration) + " minutes", true, true);
+  //     }
+  //     digitalWrite(pin, LOW);
+  //     sendMQTTMessage("status/channel" + String(channel + 1), "on");
+  //   }
+  //   else
+  //   {
+  //     digitalWrite(pin, HIGH);
+  //     sendMQTTMessage("status/channel" + String(channel + 1), "off");
+  //   }
+  //   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+  //   screen->DisplayMessage("Finished on: " + String(channel), true, true);
+  //   Serial.printf("Channel %d toggled\n", channel);
+  // }
+}
+
+void setScheduledCallback(){
+  irrigationScheduleEnabled = true;
+  sendMQTTMessage("status/scheduled", "on");
+  screen->DisplayMessage("Irrigation set to scheduled mode", true, true);
   exitMenuCallback();
 }
 
@@ -1097,7 +1383,7 @@ void commandScheduleDeleteCallback(int scheduleIndex)
 
 void ShowScheduleDaysSubmenuCallback()
 {
-    Serial.println("Showing schedule days submenu");
-    menu->GenerateScheduleDaysSubmenu();
-    menu->menu.setScreen(scheduleDaysScreen);
+  Serial.println("Showing schedule days submenu");
+  menu->GenerateScheduleDaysSubmenu();
+  menu->menu.setScreen(scheduleDaysScreen);
 }

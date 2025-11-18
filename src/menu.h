@@ -39,7 +39,8 @@ class Menu
 };
 
 // Callback functions
-extern void toggleChannel(int channel);
+extern void toggleChannelCallback(int channel);
+extern void setScheduledCallback();
 extern void toggleCallback(bool isOn, int index);
 extern void exitMenuCallback();
 extern void commandWifiCallback();

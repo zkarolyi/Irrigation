@@ -10,6 +10,17 @@ async function callToggleSwitch(ch) {
     location.reload();
 }
 
+async function callSetScheduled() {
+    try {
+        const response = await fetch('/SetScheduled');
+        const data = await response.json();
+        console.log(data);
+    } catch (error) {
+        console.error('Error:', error);
+    }
+    location.reload();
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     fetch('channelNames.json')
         .then(response => response.json())
