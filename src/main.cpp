@@ -788,8 +788,19 @@ void mqttMessageHandler(char *topic, byte *payload, unsigned int length)
   else if (cmd.equalsIgnoreCase("SCHEDULED"))
   {
     irrigationScheduleEnabled = pl.equalsIgnoreCase("ON");
-    screen->DisplayMessage("Irrigation set to scheduled mode", true, true);
+    screen->DisplayMessage("Irrigation set to " + String(irrigationScheduleEnabled ? "scheduled" : "manual") + " mode", true, true);
     sendMQTTMessage("status/scheduled", pl.equalsIgnoreCase("ON") ? "on" : "off");
+  }
+  else if (cmd.equalsIgnoreCase("STATUS"))
+  {
+    for (int i = 0; i < irrigationChannelNumber; i++)
+    {
+      String status = digitalRead(schedules.getPin(i)) == LOW ? "on" : "off";
+      sendMQTTMessage("status/channel" + String(i + 1), status);
+    }
+    String scheduledStatus = irrigationScheduleEnabled ? "on" : "off";
+    sendMQTTMessage("status/scheduled", scheduledStatus);
+    sendMQTTMessage("status/status", "off");
   }
   else
   {
