@@ -34,6 +34,7 @@ void mqttMessageHandler(char *topic, byte *payload, unsigned int length);
 void startChannel(int channel, int duration);
 void stopChannel(int channel);
 void toggleChannel(int channel, int duration);
+boolean readMqttCredentials();
 
 bool irrigationScheduleEnabled = true;
 int irrigationCheckInterval = 10000;

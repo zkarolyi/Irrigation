@@ -22,7 +22,6 @@ const char *password;
 RTC_DS3231 rtc;
 
 WebServer server(80);
-bool wifiConnected = false;
 IrrigationSchedules schedules;
 Display *screen = nullptr;
 Menu *menu = nullptr;
@@ -110,7 +109,7 @@ bool InitializeWiFi()
     wifiMacAddress = WiFi.macAddress();
     wifiSsid = WiFi.SSID();
     configTime(0, 0, ntpServer);
-    InitializeWebServer();
+    server.begin();
     return true;
   }
   screen->DisplayMessage("WI-FI connection failed", true, true);
@@ -130,13 +129,17 @@ void InitializeWebServer()
   server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
   server.serveStatic("/", SPIFFS, "/");
   server.onNotFound(handle_NotFound);
-
-  server.begin();
-  screen->DisplayMessage("HTTP server started", true, true);
+  screen->DisplayMessage("HTTP server inicialized", true, true);
 }
 
 void InitializeOTA()
 {
+  // Avoid multiple initializations of OTA
+  static boolean otaInitialized = false;
+  if (otaInitialized)
+    return;
+  otaInitialized = true;
+
   // OTA
   // Port defaults to 3232
   // ArduinoOTA.setPort(3232);
@@ -201,9 +204,21 @@ void InitializeRTC()
 
 void InitializeMQTT()
 {
+  static bool mqttInitialized = false;
+  if (mqttInitialized)
+    return;
+
+  if (!readMqttCredentials() || !mqttConfig.isValid())
+  {
+    Serial.println("MQTT config invalid, skipping InitializeMQTT");
+    screen->DisplayMessage("MQTT config invalid", true, true);
+    return;
+  }
+
   mqttClient.setServer(mqttConfig.broker, mqttConfig.port);
-  // Set callback for incoming MQTT messages (commands)
   mqttClient.setCallback(mqttMessageHandler);
+  mqttInitialized = true;
+  Serial.println("MQTT initialized");
 }
 
 // ##########################################
@@ -259,7 +274,7 @@ void saveWiFiCredentials(const char *newSsid, const char *newPassword)
   file.close();
 
   Serial.println("Wifi credentials saved");
-  wifiConnected = InitializeWiFi();
+  InitializeWiFi();
 }
 
 boolean readWiFiCredentials()
@@ -672,8 +687,13 @@ void handleTimer(bool runNow = false)
     if (WiFi.status() != WL_CONNECTED)
     {
       screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
-      wifiConnected = InitializeWiFi();
-      if (!wifiConnected)
+      InitializeWiFi();
+      if (WiFi.status() == WL_CONNECTED)
+      {
+        InitializeOTA();
+        InitializeMQTT();
+      }
+      else
       {
         screen->DisplayMessage("Failed to reconnect WiFi", true, true);
       }
@@ -682,7 +702,7 @@ void handleTimer(bool runNow = false)
     if (rtc.lostPower())
     {
       struct tm timeinfo;
-      if (wifiConnected)
+      if (WiFi.status() == WL_CONNECTED)
       {
         if (getLocalTime(&timeinfo, 200))
         {
@@ -951,7 +971,7 @@ void startChannel(int channel, int duration)
   {
     if (i != channel)
     {
-      if(digitalRead(schedules.getPin(i)) == LOW)
+      if (digitalRead(schedules.getPin(i)) == LOW)
       {
         digitalWrite(schedules.getPin(i), HIGH);
         sendMQTTMessage("status/channel" + String(i + 1), "off");
@@ -975,7 +995,7 @@ void stopChannel(int channel)
     screen->DisplayMessage("Invalid channel", true, true);
     return;
   }
-  if(channel == -1)
+  if (channel == -1)
   {
     for (int i = 0; i < irrigationChannelNumber; i++)
     {
@@ -989,7 +1009,7 @@ void stopChannel(int channel)
     screen->DisplayMessage("All channels stopped", true, true);
     irrigationManualEnd = 0;
     return;
-  } 
+  }
 
   digitalWrite(schedules.getPin(channel), HIGH);
   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
@@ -1001,10 +1021,11 @@ void toggleChannel(int channel, int duration)
 {
   Serial.printf("Channel %d toggle start\n", channel);
   screen->DisplayMessage("Handle toggle", true, true);
-  if(channel == -1)
+  if (channel == -1)
   {
     stopChannel(-1);
-  } else if(digitalRead(schedules.getPin(channel)) == HIGH)
+  }
+  else if (digitalRead(schedules.getPin(channel)) == HIGH)
   {
     if (duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
     {
@@ -1021,7 +1042,6 @@ void toggleChannel(int channel, int duration)
   }
 
   exitMenuCallback();
-
 }
 
 // ###########################################################################
@@ -1047,9 +1067,11 @@ void setup()
 
   InitFS();
 
+  InitializeWebServer();
+
   if (readWiFiCredentials())
   {
-    wifiConnected = InitializeWiFi();
+    InitializeWiFi();
   }
   else
   {
@@ -1068,17 +1090,10 @@ void setup()
   menu->menu.hide();
   menu->encoder.setSwitchDebounceDelay(50);
 
-  if (wifiConnected)
+  if (WiFi.status() == WL_CONNECTED)
   {
     InitializeOTA();
-    if (readMqttCredentials() && mqttConfig.isValid())
-    {
-      InitializeMQTT();
-    }
-    else
-    {
-      screen->DisplayMessage("No MQTT credentials", true, true);
-    }
+    InitializeMQTT();
   }
   else
   {
@@ -1168,7 +1183,8 @@ void toggleChannelCallback(int channel)
   exitMenuCallback();
 }
 
-void setScheduledCallback(){
+void setScheduledCallback()
+{
   irrigationScheduleEnabled = true;
   sendMQTTMessage("status/scheduled", "on");
   screen->DisplayMessage("Irrigation set to scheduled mode", true, true);
