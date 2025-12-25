@@ -22,7 +22,7 @@ const char *password;
 RTC_DS3231 rtc;
 
 WebServer server(80);
-bool wifiConnected = false;
+bool wifiServicesInitialized = false;
 IrrigationSchedules schedules;
 Display *screen = nullptr;
 Menu *menu = nullptr;
@@ -259,7 +259,7 @@ void saveWiFiCredentials(const char *newSsid, const char *newPassword)
   file.close();
 
   Serial.println("Wifi credentials saved");
-  wifiConnected = InitializeWiFi();
+  InitializeWiFi();
 }
 
 boolean readWiFiCredentials()
@@ -670,26 +670,33 @@ void handleTimer(bool runNow = false)
     TimerLastRun = millis();
     Serial.println("Timer handler reached");
     
-    // Check if WiFi is connected and update state accordingly
-    bool wasConnected = wifiConnected;
+    // Check if WiFi is connected and initialize services if needed
     if (WiFi.status() != WL_CONNECTED)
     {
       // WiFi is not connected, try to reconnect
       screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
-      wifiConnected = InitializeWiFi();
-      if (!wifiConnected)
+      if (InitializeWiFi())
+      {
+        // WiFi reconnected successfully, initialize remaining services
+        InitializeOTA();
+        if (readMqttCredentials() && mqttConfig.isValid())
+        {
+          InitializeMQTT();
+        }
+        wifiServicesInitialized = true;
+      }
+      else
       {
         screen->DisplayMessage("Failed to reconnect WiFi", true, true);
       }
-      // Note: If InitializeWiFi() succeeds, it will initialize web server and services internally
     }
-    else if (!wifiConnected)
+    else if (!wifiServicesInitialized)
     {
-      // WiFi is connected but wifiConnected flag is false
+      // WiFi is connected but services not initialized yet
       // This happens when WiFi reconnects automatically after being unavailable at startup
-      // In this case, services were never initialized, so we need to set them up now
-      screen->DisplayMessage("WiFi reconnected, updating state", true, true);
-      wifiConnected = true;
+      screen->DisplayMessage("WiFi reconnected, initializing services", true, true);
+      
+      // Update WiFi state variables
       wifiIpAddress = WiFi.localIP().toString();
       wifiDnsIp = WiFi.dnsIP().toString();
       wifiGatewayIp = WiFi.gatewayIP().toString();
@@ -699,17 +706,13 @@ void handleTimer(bool runNow = false)
       configTime(0, 0, ntpServer);
       
       // Initialize services that depend on WiFi
-      // wasConnected will be false here because WiFi failed at startup
-      // This ensures we only initialize services once when WiFi becomes available
-      if (!wasConnected)
+      InitializeWebServer();
+      InitializeOTA();
+      if (readMqttCredentials() && mqttConfig.isValid())
       {
-        InitializeWebServer();
-        InitializeOTA();
-        if (readMqttCredentials() && mqttConfig.isValid())
-        {
-          InitializeMQTT();
-        }
+        InitializeMQTT();
       }
+      wifiServicesInitialized = true;
     }
     
     UpdateTimeZone();
@@ -1083,7 +1086,24 @@ void setup()
 
   if (readWiFiCredentials())
   {
-    wifiConnected = InitializeWiFi();
+    if (InitializeWiFi())
+    {
+      // WiFi connected and web server initialized
+      InitializeOTA();
+      if (readMqttCredentials() && mqttConfig.isValid())
+      {
+        InitializeMQTT();
+      }
+      else
+      {
+        screen->DisplayMessage("No MQTT credentials", true, true);
+      }
+      wifiServicesInitialized = true;
+    }
+    else
+    {
+      screen->DisplayMessage("OTA, MQTT not started", true, true);
+    }
   }
   else
   {
@@ -1101,23 +1121,6 @@ void setup()
   menu->menu.setScreen(mainScreen, false);
   menu->menu.hide();
   menu->encoder.setSwitchDebounceDelay(50);
-
-  if (wifiConnected)
-  {
-    InitializeOTA();
-    if (readMqttCredentials() && mqttConfig.isValid())
-    {
-      InitializeMQTT();
-    }
-    else
-    {
-      screen->DisplayMessage("No MQTT credentials", true, true);
-    }
-  }
-  else
-  {
-    screen->DisplayMessage("OTA, MQTT not started", true, true);
-  }
 }
 
 // ###########################################################################
