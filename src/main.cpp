@@ -129,13 +129,13 @@ void InitializeWebServer()
   server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
   server.serveStatic("/", SPIFFS, "/");
   server.onNotFound(handle_NotFound);
-  screen->DisplayMessage("HTTP server inicialized", true, true);
+  screen->DisplayMessage("HTTP server initialized", true, true);
 }
 
 void InitializeOTA()
 {
   // Avoid multiple initializations of OTA
-  static boolean otaInitialized = false;
+  static bool otaInitialized = false;
   if (otaInitialized)
     return;
   otaInitialized = true;
