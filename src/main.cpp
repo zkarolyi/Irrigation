@@ -674,7 +674,6 @@ void handleTimer(bool runNow = false)
     bool wasConnected = wifiConnected;
     if (WiFi.status() != WL_CONNECTED)
     {
-      wifiConnected = false;
       screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
       wifiConnected = InitializeWiFi();
       if (!wifiConnected)
