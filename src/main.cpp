@@ -669,8 +669,12 @@ void handleTimer(bool runNow = false)
   {
     TimerLastRun = millis();
     Serial.println("Timer handler reached");
+    
+    // Check if WiFi is connected and update state accordingly
+    bool wasConnected = wifiConnected;
     if (WiFi.status() != WL_CONNECTED)
     {
+      wifiConnected = false;
       screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
       wifiConnected = InitializeWiFi();
       if (!wifiConnected)
@@ -678,11 +682,37 @@ void handleTimer(bool runNow = false)
         screen->DisplayMessage("Failed to reconnect WiFi", true, true);
       }
     }
+    else if (!wifiConnected)
+    {
+      // WiFi is connected but wifiConnected flag is false
+      // This happens when WiFi reconnects automatically after being unavailable at startup
+      screen->DisplayMessage("WiFi reconnected, updating state", true, true);
+      wifiConnected = true;
+      wifiIpAddress = WiFi.localIP().toString();
+      wifiDnsIp = WiFi.dnsIP().toString();
+      wifiGatewayIp = WiFi.gatewayIP().toString();
+      wifiHostname = WiFi.getHostname();
+      wifiMacAddress = WiFi.macAddress();
+      wifiSsid = WiFi.SSID();
+      configTime(0, 0, ntpServer);
+      
+      // Initialize services that depend on WiFi
+      if (!wasConnected)
+      {
+        InitializeWebServer();
+        InitializeOTA();
+        if (readMqttCredentials() && mqttConfig.isValid())
+        {
+          InitializeMQTT();
+        }
+      }
+    }
+    
     UpdateTimeZone();
     if (rtc.lostPower())
     {
       struct tm timeinfo;
-      if (wifiConnected)
+      if (WiFi.status() == WL_CONNECTED)
       {
         if (getLocalTime(&timeinfo, 200))
         {
@@ -698,7 +728,7 @@ void handleTimer(bool runNow = false)
       }
       else
       {
-        screen->DisplayMessage("Failed to set RTC", true, true);
+        screen->DisplayMessage("Failed to set RTC, WiFi not connected", true, true);
       }
     }
   }
