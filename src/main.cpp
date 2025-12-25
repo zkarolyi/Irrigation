@@ -674,17 +674,20 @@ void handleTimer(bool runNow = false)
     bool wasConnected = wifiConnected;
     if (WiFi.status() != WL_CONNECTED)
     {
+      // WiFi is not connected, try to reconnect
       screen->DisplayMessage("WiFi not connected, trying to reconnect", true, true);
       wifiConnected = InitializeWiFi();
       if (!wifiConnected)
       {
         screen->DisplayMessage("Failed to reconnect WiFi", true, true);
       }
+      // Note: If InitializeWiFi() succeeds, it will initialize web server and services internally
     }
     else if (!wifiConnected)
     {
       // WiFi is connected but wifiConnected flag is false
       // This happens when WiFi reconnects automatically after being unavailable at startup
+      // In this case, services were never initialized, so we need to set them up now
       screen->DisplayMessage("WiFi reconnected, updating state", true, true);
       wifiConnected = true;
       wifiIpAddress = WiFi.localIP().toString();
@@ -696,6 +699,8 @@ void handleTimer(bool runNow = false)
       configTime(0, 0, ntpServer);
       
       // Initialize services that depend on WiFi
+      // wasConnected will be false here because WiFi failed at startup
+      // This ensures we only initialize services once when WiFi becomes available
       if (!wasConnected)
       {
         InitializeWebServer();
