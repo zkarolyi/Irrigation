@@ -784,17 +784,24 @@ void mqttMessageHandler(char *topic, byte *payload, unsigned int length)
       screen->DisplayMessage("Invalid MQTT channel", true, true);
       return;
     }
-    if (pl.equalsIgnoreCase("ON"))
-    {
-      int duration = manualIrrigationDurationDef;
-      startChannel(ch, duration);
-    }
-    else if (pl.equalsIgnoreCase("OFF"))
+    if (pl.equalsIgnoreCase("OFF"))
     {
       stopChannel(ch);
     }
+    else if (pl.startsWith("ON:") || pl.startsWith("on:"))
+    {
+      // ON:<minutes> — e.g. "ON:30" starts the channel for 30 minutes
+      int duration = pl.substring(3).toInt();
+      if (duration <= 0) duration = manualIrrigationDurationDef;
+      startChannel(ch, duration);
+    }
+    else if (pl.equalsIgnoreCase("ON"))
+    {
+      startChannel(ch, manualIrrigationDurationDef);
+    }
     else
     {
+      // Plain number as payload is treated as duration in minutes
       int duration = pl.toInt();
       if (duration > 0)
         startChannel(ch, duration);
@@ -940,6 +947,16 @@ void ManageIrrigation()
   }
   else
   {
+    if (irrigationManualEnd > 0 && millis() <= irrigationManualEnd)
+    {
+      if (millis() - irrigationLastCheck >= irrigationCheckInterval)
+      {
+        irrigationLastCheck = millis();
+        unsigned long secondsLeft = (irrigationManualEnd - millis()) / 1000;
+        sendMQTTMessage("status/timeLeft", String(secondsLeft));
+      }
+    }
+
     if (irrigationManualEnd > 0 && millis() > irrigationManualEnd)
     {
       for (int i = 0; i < irrigationChannelNumber; i++)
@@ -952,6 +969,7 @@ void ManageIrrigation()
       }
       screen->DisplayMessage("Manual irrigation ended", true, true);
       sendMQTTMessage("status/manual", "off");
+      sendMQTTMessage("status/timeLeft", "0");
       irrigationManualEnd = 0;
     }
   }
@@ -986,6 +1004,7 @@ void startChannel(int channel, int duration)
   irrigationManualEnd = millis() + duration * 60 * 1000;
   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Channel " + String(channel + 1) + " started for " + String(duration) + " minutes", true, true);
+  sendMQTTMessage("status/timeLeft", String((unsigned long)(duration) * 60));
 }
 
 void stopChannel(int channel)
@@ -1008,6 +1027,7 @@ void stopChannel(int channel)
     displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
     screen->DisplayMessage("All channels stopped", true, true);
     irrigationManualEnd = 0;
+    sendMQTTMessage("status/timeLeft", "0");
     return;
   }
 
@@ -1015,6 +1035,8 @@ void stopChannel(int channel)
   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Channel " + String(channel + 1) + " stopped", true, true);
   sendMQTTMessage("status/channel" + String(channel + 1), "off");
+  irrigationManualEnd = 0;
+  sendMQTTMessage("status/timeLeft", "0");
 }
 
 void toggleChannel(int channel, int duration)
