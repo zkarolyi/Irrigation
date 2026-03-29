@@ -232,7 +232,7 @@ void Display::DisplayText()
     HandleTimeouts(DISPLAY_LAST_UPDATE_INTERVAL);
 
     DateTime now;
-    if (rtc.begin() && !rtc.lostPower())
+    if (!rtc.lostPower())
     {
         now = rtc.now();
         timeSynced = now.isValid();

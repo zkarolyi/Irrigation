@@ -605,6 +605,7 @@ void handle_OnRoot()
   if (file)
   {
     body = file.readString();
+    file.close();
     for (int i = 0; i < irrigationChannelNumber; i++)
     {
       if (!digitalRead(schedules.getPin(i)))
@@ -612,7 +613,6 @@ void handle_OnRoot()
         Serial.println("Channel " + String(i + 1) + " is on");
         body.replace("<!--SetActive-->", "document.getElementById('ch" + String(i + 1) + "').classList.add('button-check');");
       }
-      file.close();
     }
     String modeStr = irrigationScheduleEnabled ? "Scheduled" : "Manual";
     if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd)
@@ -699,14 +699,14 @@ void handleTimer(bool runNow = false)
       }
     }
     UpdateTimeZone();
-    if (rtc.lostPower())
+    if (rtc.lostPower() || runNow)
     {
       struct tm timeinfo;
       if (WiFi.status() == WL_CONNECTED)
       {
         if (getLocalTime(&timeinfo, 200))
         {
-          screen->DisplayMessage("RTC lost power, setting time", true, true);
+          screen->DisplayMessage(runNow ? "Updating RTC from NTP" : "RTC lost power, setting time", true, true);
           rtc.adjust(DateTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
                               timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec));
         }
@@ -1137,6 +1137,12 @@ void setup()
 // Loop
 void loop()
 {
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    server.handleClient();
+    loopMQTT();
+    ArduinoOTA.handle();
+  }
   ManageIrrigation();
   if (isMenuActive)
   {
@@ -1147,12 +1153,6 @@ void loop()
   {
     screen->DisplayText();
     handleRotary();
-  }
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    server.handleClient();
-    loopMQTT();
-    ArduinoOTA.handle();
   }
   handleTimer();
 }
