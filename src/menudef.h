@@ -29,6 +29,7 @@ MENU_SCREEN(settingsScreen, settingsItems,
             ITEM_SUBMENU("MQTT Settings", mqttSettingsScreen),
             ITEM_COMMAND("Reset Screen", resetScreenCallback),
             ITEM_COMMAND("Reset RTC", resetRtcCallback),
+            ITEM_COMMAND("Reboot", rebootCallback),
             ITEM_BACK("Back"));
 
 // Wifi settings submenu

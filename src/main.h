@@ -37,9 +37,9 @@ void toggleChannel(int channel, int duration);
 boolean readMqttCredentials();
 
 bool irrigationScheduleEnabled = true;
-int irrigationCheckInterval = 10000;
-int irrigationLastCheck = 0;
-int irrigationManualEnd = 0;
+unsigned long irrigationCheckInterval = 10000;
+unsigned long irrigationLastCheck = 0;
+unsigned long irrigationManualEnd = 0;
 
 int displayDimmPin = 5;
 int displayNetworkActivity = 0;

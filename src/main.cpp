@@ -1186,6 +1186,12 @@ void resetRtcCallback()
   exitMenuCallback();
 }
 
+void rebootCallback()
+{
+  exitMenuCallback();
+  ESP.restart();
+}
+
 void wifiInformationCallback()
 {
   exitMenuCallback();

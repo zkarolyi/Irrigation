@@ -48,6 +48,7 @@ extern void wifiInformationCallback();
 extern void commandMqttCallback();
 extern void resetScreenCallback();
 extern void resetRtcCallback();
+extern void rebootCallback();
 extern void commandScheduleSelectCallback(int scheduleIndex);
 extern void commandScheduleEditCallback(int scheduleIndex);
 extern void commandScheduleDeleteCallback(int scheduleIndex);
