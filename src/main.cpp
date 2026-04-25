@@ -949,7 +949,7 @@ void ManageIrrigation()
   {
     if (irrigationManualEnd > 0 && millis() <= irrigationManualEnd)
     {
-      if (millis() - irrigationLastCheck >= irrigationCheckInterval)
+      if (millis() - irrigationLastCheck >= 1000)
       {
         irrigationLastCheck = millis();
         unsigned long secondsLeft = (irrigationManualEnd - millis()) / 1000;
