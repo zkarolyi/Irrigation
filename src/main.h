@@ -1,7 +1,9 @@
-void handle_OnRoot();
-void handle_OnToggleSwitch();
-void handle_OnSetScheduled();
-void handle_NotFound();
+#include <ESPAsyncWebServer.h>
+
+void handle_OnRoot(AsyncWebServerRequest *request);
+void handle_OnToggleSwitch(AsyncWebServerRequest *request);
+void handle_OnSetScheduled(AsyncWebServerRequest *request);
+void handle_NotFound(AsyncWebServerRequest *request);
 void InitFS();
 
 const char *HOSTNAME = "Irrigation";
@@ -55,11 +57,13 @@ String wifiMacAddress;
 String wifiSsid;
 
 void InitializeWebServer();
-void handle_OnGetSchedule();
-void handle_OnSetSchedule();
-void handle_OnSetDimming();
-void handle_onScheduleList();
-void handle_OnGetSettings();
+void handle_OnGetSchedule(AsyncWebServerRequest *request);
+extern AsyncEventSource events;
+void sendStatusEvent();
+void handle_OnSetSchedule(AsyncWebServerRequest *request);
+void handle_OnSetDimming(AsyncWebServerRequest *request);
+void handle_onScheduleList(AsyncWebServerRequest *request);
+void handle_OnGetSettings(AsyncWebServerRequest *request);
 
 const char *schedulesFile = "/schedules.json";
 

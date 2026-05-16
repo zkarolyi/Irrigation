@@ -24,7 +24,7 @@
                 <div class="listItem">
 
                 </div>
-                ${schedules}
+                %SCHEDULES%
             </div>
         </div>
         <div class="buttonLine">

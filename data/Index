@@ -14,8 +14,8 @@
             <span>Irrigation system</span>
         </div>
         <div class="content">
-            <div class="status">
-                Mode: <!--Mode-->
+            <div class="status" id="modeDisplay">
+                Mode: %MODE%
             </div>
             <div class="status">
                 <label for="duration">Manual irrigation time (minutes):</label>
@@ -90,7 +90,7 @@
         </div>
         <div class="buttonLine">
             <button type="button" onclick="callToggleSwitch(0);">All off</button>
-            <button type="button" onclick="callSetScheduled();">Schedule On</button>
+            <button type="button" id="scheduleBtn" onclick="callSetScheduled();">Schedule On</button>
             <button type="button" onclick="window.location.href='/ScheduleList';">Schedules</button>
         </div>
         <div class="footer">
@@ -98,7 +98,7 @@
         </div>
     </div>
     <script>
-        <!--SetActive-->
+        %SET_ACTIVE%
     </script>
     <script src="script.js"></script>
 </body>
