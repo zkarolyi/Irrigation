@@ -43,7 +43,7 @@ body {
 
 .scheduleList{
     display: grid;
-    grid-template-columns: 100px 70px 50px;
+    grid-template-columns: 100px 70px auto;
     padding-top: 2px;
     margin: 0px 100px;
 }
@@ -72,6 +72,16 @@ a.linkButton{
 a.linkButton:hover{
     background-color: green;
     border: 3px solid darkgreen;
+}
+
+a.linkButton--danger{
+    background-color: darkred;
+    border: 3px solid darkred;
+}
+
+a.linkButton--danger:hover{
+    background-color: red;
+    border: 3px solid darkred;
 }
 
 button[type="submit"] {

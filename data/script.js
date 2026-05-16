@@ -39,3 +39,10 @@ function insertChannelNames(channelNames) {
         }
     });
 }
+
+const evtSource = new EventSource('/events');
+evtSource.addEventListener('status', function(e) {
+    document.getElementById('modeDisplay').textContent = 'Mode: ' + e.data;
+    const btn = document.getElementById('scheduleBtn');
+    if (btn) btn.textContent = e.data.startsWith('Scheduled') ? 'Schedule Off' : 'Schedule On';
+});
