@@ -28,6 +28,11 @@
             </div>
         </div>
         <div class="buttonLine">
+            <button type="button" onclick="window.location.href='/DownloadSchedules';">Download</button>
+            <form id="uploadForm" style="display:inline;" enctype="multipart/form-data" method="post" action="/UploadSchedules">
+                <input type="file" name="schedules" id="scheduleFile" accept=".json" style="display:none;" onchange="document.getElementById('uploadForm').submit();">
+                <button type="button" onclick="document.getElementById('scheduleFile').click();">Upload</button>
+            </form>
             <button type="button" onclick="window.location.href='/';">Cancel</button>
             <button type="submit" onclick="window.location.href='/Schedule';">Add</button>
         </div>

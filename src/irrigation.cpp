@@ -169,6 +169,14 @@ void IrrigationSchedules::removeSchedule(int index)
     if (item != schedules.end())
     {
         schedules.erase(item);
+        // Re-index: shift all keys above the removed index down by 1
+        std::map<int, IrrigationSchedule> reindexed;
+        for (auto &pair : schedules)
+        {
+            int newKey = pair.first > index ? pair.first - 1 : pair.first;
+            reindexed[newKey] = pair.second;
+        }
+        schedules = reindexed;
     }
 }
 

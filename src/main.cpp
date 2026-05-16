@@ -145,6 +145,11 @@ void InitializeWebServer()
   server.on("/SetDimming", HTTP_GET, handle_OnSetDimming);
   server.on("/ScheduleList", HTTP_GET, handle_onScheduleList);
   server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
+  server.on("/DownloadSchedules", HTTP_GET, handle_OnDownloadSchedules);
+  server.on("/DeleteSchedule", HTTP_GET, handle_OnDeleteSchedule);
+  server.on("/UploadSchedules", HTTP_POST,
+    [](AsyncWebServerRequest *request) { request->redirect("/ScheduleList"); },
+    handle_UploadSchedules);
   server.serveStatic("/", SPIFFS, "/");
   server.onNotFound(handle_NotFound);
   screen->DisplayMessage("HTTP server initialized", true, true);
@@ -557,6 +562,7 @@ void handle_onScheduleList(AsyncWebServerRequest *request)
     lines += "</div>";
     lines += "<div class=\"listItem\">";
     lines += "<a href=\"Schedule?id=" + String(i) + "\" class=\"linkButton\">Details</a>";
+    lines += " <a href=\"DeleteSchedule?id=" + String(i) + "\" class=\"linkButton linkButton--danger\" onclick=\"return confirm('Delete this schedule?')\">Delete</a>";
     lines += "</div>\n";
   }
 
@@ -567,6 +573,52 @@ void handle_onScheduleList(AsyncWebServerRequest *request)
     });
 
   screen->DisplayMessage("Finished.", true, true);
+}
+
+void handle_OnDeleteSchedule(AsyncWebServerRequest *request)
+{
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
+  int id = request->hasArg("id") ? request->arg("id").toInt() : -1;
+  if (id < 0 || id >= schedules.getNumberOfSchedules())
+  {
+    request->send(400, "text/html", "Invalid schedule id");
+    return;
+  }
+  schedules.removeSchedule(id);
+  SaveSchedules(schedules);
+  screen->DisplayMessage("Schedule deleted", true, true);
+  request->redirect("/ScheduleList");
+}
+
+void handle_OnDownloadSchedules(AsyncWebServerRequest *request)
+{
+  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
+  request->send(SPIFFS, schedulesFile, "application/json", true);
+}
+
+void handle_UploadSchedules(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+  static File uploadFile;
+  if (!index)
+  {
+    displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
+    screen->DisplayMessage("Uploading schedules", true, true);
+    uploadFile = SPIFFS.open(schedulesFile, "w");
+  }
+  if (uploadFile)
+  {
+    uploadFile.write(data, len);
+  }
+  if (final)
+  {
+    if (uploadFile)
+    {
+      uploadFile.close();
+    }
+    InitializeSchedules();
+    menu->GenerateIrrigationSubmenu();
+    screen->DisplayMessage("Schedules uploaded", true, true);
+  }
 }
 
 void handle_OnGetSettings(AsyncWebServerRequest *request)
