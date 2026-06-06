@@ -42,6 +42,8 @@ bool irrigationScheduleEnabled = true;
 unsigned long irrigationCheckInterval = 10000;
 unsigned long irrigationLastCheck = 0;
 unsigned long irrigationManualEnd = 0;
+unsigned long irrigationScheduledEnd = 0;
+unsigned long irrigationTimeLeftLastSend = 0;
 
 int displayDimmPin = 5;
 int displayNetworkActivity = 0;

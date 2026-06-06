@@ -129,7 +129,12 @@ void InitializeWebServer()
   server.on("/", HTTP_GET, handle_OnRoot);
   events.onConnect([](AsyncEventSourceClient *client) {
     String modeStr = irrigationScheduleEnabled ? "Scheduled" : "Manual";
-    if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd) {
+    if (irrigationScheduleEnabled && irrigationScheduledEnd > 0 && millis() < irrigationScheduledEnd) {
+      unsigned long left = (irrigationScheduledEnd - millis()) / 1000;
+      char timeLeft[6];
+      snprintf(timeLeft, sizeof(timeLeft), "%02u:%02u", left / 60, left % 60);
+      modeStr += " (" + String(timeLeft) + " left)";
+    } else if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd) {
       unsigned long left = (irrigationManualEnd - millis()) / 1000;
       char timeLeft[6];
       snprintf(timeLeft, sizeof(timeLeft), "%02u:%02u", left / 60, left % 60);
@@ -646,7 +651,14 @@ void handle_OnRoot(AsyncWebServerRequest *request)
   }
 
   String modeStr = irrigationScheduleEnabled ? "Scheduled" : "Manual";
-  if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd)
+  if (irrigationScheduleEnabled && irrigationScheduledEnd > 0 && millis() < irrigationScheduledEnd)
+  {
+    unsigned long left = (irrigationScheduledEnd - millis()) / 1000;
+    char timeLeft[6];
+    snprintf(timeLeft, sizeof(timeLeft), "%02u:%02u", left / 60, left % 60);
+    modeStr += " (" + String(timeLeft) + " left)";
+  }
+  else if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd)
   {
     unsigned long left = (irrigationManualEnd - millis()) / 1000;
     char timeLeft[6];
@@ -709,7 +721,12 @@ void handle_OnSetScheduled(AsyncWebServerRequest *request)
 void sendStatusEvent()
 {
   String modeStr = irrigationScheduleEnabled ? "Scheduled" : "Manual";
-  if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd) {
+  if (irrigationScheduleEnabled && irrigationScheduledEnd > 0 && millis() < irrigationScheduledEnd) {
+    unsigned long left = (irrigationScheduledEnd - millis()) / 1000;
+    char timeLeft[6];
+    snprintf(timeLeft, sizeof(timeLeft), "%02u:%02u", left / 60, left % 60);
+    modeStr += " (" + String(timeLeft) + " left)";
+  } else if (irrigationManualEnd > 0 && !irrigationScheduleEnabled && millis() < irrigationManualEnd) {
     unsigned long left = (irrigationManualEnd - millis()) / 1000;
     char timeLeft[6];
     snprintf(timeLeft, sizeof(timeLeft), "%02u:%02u", left / 60, left % 60);
@@ -921,6 +938,17 @@ void ManageIrrigation()
 {
   if (irrigationScheduleEnabled)
   {
+    if (irrigationScheduledEnd > 0 && millis() - irrigationTimeLeftLastSend >= 1000)
+    {
+      irrigationTimeLeftLastSend = millis();
+      if (millis() <= irrigationScheduledEnd)
+      {
+        unsigned long secondsLeft = (irrigationScheduledEnd - millis()) / 1000;
+        sendMQTTMessage("status/timeLeft", String(secondsLeft));
+        sendStatusEvent();
+      }
+    }
+
     if (millis() - irrigationLastCheck < irrigationCheckInterval)
     {
       return;
@@ -930,6 +958,7 @@ void ManageIrrigation()
     DateTime now = rtc.now();
     unsigned long nowU = now.unixtime();
     int channelToStart = -1;
+    unsigned long channelEndTimeU = 0;
 
     for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
     {
@@ -953,6 +982,7 @@ void ManageIrrigation()
           if (nowU >= startTimeU && nowU < endTimeU)
           {
             channelToStart = j;
+            channelEndTimeU = endTimeU;
             break;
           }
 
@@ -988,6 +1018,18 @@ void ManageIrrigation()
           screen->DisplayMessage("Channel " + String(i + 1) + " started", true, true);
           sendMQTTMessage("status/channel" + String(i + 1), "on");
         }
+      }
+    }
+    if (channelToStart != -1)
+    {
+      irrigationScheduledEnd = millis() + (channelEndTimeU - nowU) * 1000UL;
+    }
+    else
+    {
+      if (irrigationScheduledEnd > 0)
+      {
+        sendMQTTMessage("status/timeLeft", "0");
+        irrigationScheduledEnd = 0;
       }
     }
     irrigationManualEnd = 0;
@@ -1031,6 +1073,7 @@ void startChannel(int channel, int duration)
     return;
   }
   irrigationScheduleEnabled = false;
+  irrigationScheduledEnd = 0;
   sendMQTTMessage("status/scheduled", "off");
 
   for (int i = 0; i < irrigationChannelNumber; i++)
