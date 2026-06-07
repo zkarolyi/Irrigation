@@ -934,135 +934,134 @@ void loopMQTT()
 // ##################################################################################################
 
 // Irrigation
-void ManageIrrigation()
+void SendIrrigationStatusUpdate()
 {
-  if (irrigationScheduleEnabled)
+  if (millis() - irrigationTimeLeftLastSend < 1000)
+    return;
+
+  unsigned long endTime = irrigationScheduleEnabled ? irrigationScheduledEnd : irrigationManualEnd;
+  if (endTime == 0 || millis() > endTime)
+    return;
+
+  irrigationTimeLeftLastSend = millis();
+  unsigned long secondsLeft = (endTime - millis()) / 1000;
+  sendMQTTMessage("status/timeLeft", String(secondsLeft));
+  sendStatusEvent();
+}
+
+void ManageScheduledChannels()
+{
+  if (millis() - irrigationLastCheck < irrigationCheckInterval)
+    return;
+  irrigationLastCheck = millis();
+
+  DateTime now = rtc.now();
+  unsigned long nowU = now.unixtime();
+  int channelToStart = -1;
+  unsigned long channelEndTimeU = 0;
+
+  for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
   {
-    if (irrigationScheduledEnd > 0 && millis() - irrigationTimeLeftLastSend >= 1000)
+    IrrigationSchedule schedule = schedules.getSchedule(i);
+
+    // Check both yesterday and today for schedules that might have started yesterday
+    // and are still running today.
+    for (int dayOffset = -1; dayOffset <= 0; dayOffset++)
     {
-      irrigationTimeLeftLastSend = millis();
-      if (millis() <= irrigationScheduledEnd)
+      DateTime checkDay = now + TimeSpan(86400 * dayOffset);
+      if (!schedule.isValidForDay(checkDay))
+        continue;
+
+      DateTime dayStart(checkDay.year(), checkDay.month(), checkDay.day(), 0, 0, 0);
+      unsigned long startTimeU = dayStart.unixtime() + schedule.getStartTime() * 60;
+
+      for (int j = 0; j < schedules.getNumberOfChannels(); j++)
       {
-        unsigned long secondsLeft = (irrigationScheduledEnd - millis()) / 1000;
-        sendMQTTMessage("status/timeLeft", String(secondsLeft));
-        sendStatusEvent();
-      }
-    }
+        unsigned long endTimeU = startTimeU + (schedule.getChannelDuration(j) * schedule.getWeight() * 60 + 50) / 100;
 
-    if (millis() - irrigationLastCheck < irrigationCheckInterval)
-    {
-      return;
-    }
-    irrigationLastCheck = millis();
-
-    DateTime now = rtc.now();
-    unsigned long nowU = now.unixtime();
-    int channelToStart = -1;
-    unsigned long channelEndTimeU = 0;
-
-    for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
-    {
-      IrrigationSchedule schedule = schedules.getSchedule(i);
-
-      // Check both yesterday and today for schedules that might have started yesterday
-      // and are still running today.
-      for (int dayOffset = -1; dayOffset <= 0; dayOffset++)
-      {
-        DateTime checkDay = now + TimeSpan(86400 * dayOffset);
-        if (!schedule.isValidForDay(checkDay))
-          continue;
-
-        DateTime dayStart(checkDay.year(), checkDay.month(), checkDay.day(), 0, 0, 0);
-        unsigned long startTimeU = dayStart.unixtime() + schedule.getStartTime() * 60;
-
-        for (int j = 0; j < schedules.getNumberOfChannels(); j++)
+        if (nowU >= startTimeU && nowU < endTimeU)
         {
-          unsigned long endTimeU = startTimeU + (schedule.getChannelDuration(j) * schedule.getWeight() * 60 + 50) / 100;
-
-          if (nowU >= startTimeU && nowU < endTimeU)
-          {
-            channelToStart = j;
-            channelEndTimeU = endTimeU;
-            break;
-          }
-
-          startTimeU = endTimeU;
+          channelToStart = j;
+          channelEndTimeU = endTimeU;
+          break;
         }
 
-        if (channelToStart != -1)
-          break;
+        startTimeU = endTimeU;
       }
 
       if (channelToStart != -1)
         break;
     }
 
-    for (int i = 0; i < irrigationChannelNumber; i++)
-    {
-      if (i != channelToStart)
-      {
-        if (digitalRead(schedules.getPin(i)) == LOW)
-        {
-          digitalWrite(schedules.getPin(i), HIGH);
-          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-          screen->DisplayMessage("Channel " + String(i + 1) + " stopped", true, true);
-          sendMQTTMessage("status/channel" + String(i + 1), "off");
-        }
-      }
-      else
-      {
-        if (digitalRead(schedules.getPin(i)) == HIGH)
-        {
-          digitalWrite(schedules.getPin(i), LOW);
-          displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
-          screen->DisplayMessage("Channel " + String(i + 1) + " started", true, true);
-          sendMQTTMessage("status/channel" + String(i + 1), "on");
-        }
-      }
-    }
     if (channelToStart != -1)
+      break;
+  }
+
+  for (int i = 0; i < irrigationChannelNumber; i++)
+  {
+    if (i != channelToStart)
     {
-      irrigationScheduledEnd = millis() + (channelEndTimeU - nowU) * 1000UL;
+      if (digitalRead(schedules.getPin(i)) == LOW)
+      {
+        digitalWrite(schedules.getPin(i), HIGH);
+        displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+        screen->DisplayMessage("Channel " + String(i + 1) + " stopped", true, true);
+        sendMQTTMessage("status/channel" + String(i + 1), "off");
+      }
     }
     else
     {
-      if (irrigationScheduledEnd > 0)
+      if (digitalRead(schedules.getPin(i)) == HIGH)
       {
-        sendMQTTMessage("status/timeLeft", "0");
-        irrigationScheduledEnd = 0;
+        digitalWrite(schedules.getPin(i), LOW);
+        displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
+        screen->DisplayMessage("Channel " + String(i + 1) + " started", true, true);
+        sendMQTTMessage("status/channel" + String(i + 1), "on");
       }
     }
-    irrigationManualEnd = 0;
+  }
+
+  if (channelToStart != -1)
+  {
+    irrigationScheduledEnd = millis() + (channelEndTimeU - nowU) * 1000UL;
   }
   else
   {
-    if (irrigationManualEnd > 0 && millis() <= irrigationManualEnd)
+    if (irrigationScheduledEnd > 0)
     {
-      if (millis() - irrigationLastCheck >= 1000)
-      {
-        irrigationLastCheck = millis();
-        unsigned long secondsLeft = (irrigationManualEnd - millis()) / 1000;
-        sendMQTTMessage("status/timeLeft", String(secondsLeft));
-        sendStatusEvent();
-      }
-    }
-
-    if (irrigationManualEnd > 0 && millis() > irrigationManualEnd)
-    {
-      for (int i = 0; i < irrigationChannelNumber; i++)
-      {
-        if (digitalRead(schedules.getPin(i)) == LOW)
-        {
-          digitalWrite(schedules.getPin(i), HIGH);
-          sendMQTTMessage("status/channel" + String(i + 1), "off");
-        }
-      }
-      screen->DisplayMessage("Manual irrigation ended", true, true);
-      sendMQTTMessage("status/manual", "off");
       sendMQTTMessage("status/timeLeft", "0");
-      irrigationManualEnd = 0;
+      irrigationScheduledEnd = 0;
     }
   }
+  irrigationManualEnd = 0;
+}
+
+void ManageManualChannels()
+{
+  if (irrigationManualEnd == 0 || millis() <= irrigationManualEnd)
+    return;
+
+  for (int i = 0; i < irrigationChannelNumber; i++)
+  {
+    if (digitalRead(schedules.getPin(i)) == LOW)
+    {
+      digitalWrite(schedules.getPin(i), HIGH);
+      sendMQTTMessage("status/channel" + String(i + 1), "off");
+    }
+  }
+  screen->DisplayMessage("Manual irrigation ended", true, true);
+  sendMQTTMessage("status/manual", "off");
+  sendMQTTMessage("status/timeLeft", "0");
+  irrigationManualEnd = 0;
+}
+
+void ManageIrrigation()
+{
+  SendIrrigationStatusUpdate();
+  if (irrigationScheduleEnabled)
+    ManageScheduledChannels();
+  else
+    ManageManualChannels();
 }
 
 void startChannel(int channel, int duration)
