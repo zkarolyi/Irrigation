@@ -15,8 +15,6 @@
 using namespace std;
 #include <HTTPClient.h>
 
-float temperature, humidity, pressure, altitude;
-
 struct WifiCredential { String ssid; String password; };
 std::vector<WifiCredential> wifiCredentials;
 

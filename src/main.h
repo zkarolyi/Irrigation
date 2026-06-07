@@ -71,10 +71,3 @@ void handle_OnDownloadSchedules(AsyncWebServerRequest *request);
 void handle_UploadSchedules(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final);
 
 const char *schedulesFile = "/schedules.json";
-
-String LongToString(long number, int digits)
-{
-    char buffer[digits + 1];
-    sprintf(buffer, "%0*d", digits, number);
-    return String(buffer);
-}
