@@ -46,3 +46,15 @@ evtSource.addEventListener('status', function(e) {
     const btn = document.getElementById('scheduleBtn');
     if (btn) btn.textContent = e.data.startsWith('Scheduled') ? 'Schedule Off' : 'Schedule On';
 });
+
+evtSource.addEventListener('channels', function(e) {
+    for (let i = 0; i < e.data.length; i++) {
+        const el = document.getElementById('ch' + (i + 1));
+        if (!el) continue;
+        if (e.data[i] === '1') {
+            el.classList.add('button-check');
+        } else {
+            el.classList.remove('button-check');
+        }
+    }
+});

@@ -733,6 +733,16 @@ void sendStatusEvent()
   events.send(modeStr.c_str(), "status", millis());
 }
 
+void sendChannelEvent()
+{
+  String states;
+  for (int i = 0; i < irrigationChannelNumber; i++)
+  {
+    states += digitalRead(schedules.getPin(i)) == LOW ? "1" : "0";
+  }
+  events.send(states.c_str(), "channels", millis());
+}
+
 void handle_NotFound(AsyncWebServerRequest *request)
 {
   displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
@@ -1022,6 +1032,7 @@ void ManageScheduledChannels()
   if (channelToStart != -1)
   {
     irrigationScheduledEnd = millis() + (channelEndTimeU - nowU) * 1000UL;
+    sendChannelEvent();
   }
   else
   {
@@ -1029,6 +1040,8 @@ void ManageScheduledChannels()
     {
       sendMQTTMessage("status/timeLeft", "0");
       irrigationScheduledEnd = 0;
+      sendChannelEvent();
+      sendStatusEvent();
     }
   }
   irrigationManualEnd = 0;
@@ -1051,6 +1064,8 @@ void ManageManualChannels()
   sendMQTTMessage("status/manual", "off");
   sendMQTTMessage("status/timeLeft", "0");
   irrigationManualEnd = 0;
+  sendChannelEvent();
+  sendStatusEvent();
 }
 
 void ManageIrrigation()
@@ -1093,6 +1108,7 @@ void startChannel(int channel, int duration)
   displayOutChange = DISPLAY_TIMEOUT_INTERVAL;
   screen->DisplayMessage("Channel " + String(channel + 1) + " started for " + String(duration) + " minutes", true, true);
   sendMQTTMessage("status/timeLeft", String((unsigned long)(duration) * 60));
+  sendChannelEvent();
   sendStatusEvent();
 }
 
@@ -1117,6 +1133,7 @@ void stopChannel(int channel)
     screen->DisplayMessage("All channels stopped", true, true);
     irrigationManualEnd = 0;
     sendMQTTMessage("status/timeLeft", "0");
+    sendChannelEvent();
     sendStatusEvent();
     return;
   }
@@ -1127,6 +1144,7 @@ void stopChannel(int channel)
   sendMQTTMessage("status/channel" + String(channel + 1), "off");
   irrigationManualEnd = 0;
   sendMQTTMessage("status/timeLeft", "0");
+  sendChannelEvent();
   sendStatusEvent();
 }
 
