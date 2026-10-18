@@ -8,11 +8,8 @@ ESP32-based automated irrigation controller. Arduino framework, built with Platf
 # Build
 pio run
 
-# Upload (OTA, requires device on network)
+# Upload (OTA, requires device on network) — also ships the web UI, which is embedded
 pio run --target upload        # uploads to hostname "Irrigation" via mDNS/OTA
-
-# Upload filesystem (SPIFFS data/) — flashes the WHOLE image, see "SPIFFS Files"
-pio run --target uploadfs
 
 # Serial monitor
 pio device monitor             # 115200 baud
@@ -31,17 +28,16 @@ OTA upload requires the device to be connected to WiFi. Use `pio run --target up
 | `src/Irrigation.h` / `irrigation.cpp` | `IrrigationSchedule` and `IrrigationSchedules` classes; JSON serialization |
 | `src/display.h` / `display.cpp` | LCD 20×4 controller, scrolling, PWM dimming |
 | `src/menu.h` / `menudef.h` / `menu.cpp` | LcdMenu wrapper, dynamic submenu generation from loaded schedules |
-| `data/` | SPIFFS filesystem files served over HTTP |
-| `data/Index`, `data/Schedule`, `data/ScheduleList` | HTML pages (**no file extension**), served by explicit routes with `%VARIABLE%` templating |
-| `data/script.js`, `data/site.css` | Web UI script (opens `EventSource('/events')`) and styles |
-| `data/channelNames.json` | Display labels for the 8 irrigation channels (UTF-8, Hungarian) |
+| `web/` | Single-page web UI (`index.html`, `app.js`, `app.css`, `favicon.svg`), embedded into the firmware at build time |
+| `scripts/embed_web.py` | PlatformIO pre-build script: minifies + gzips `web/` into the generated `src/web_assets.h` (git-ignored) |
 
-Files created on the device at runtime (**not in the repo**, not in `data/`):
+Files created on the device at runtime (**not in the repo**):
 
 | SPIFFS path | Role |
 |-------------|------|
 | `/wifi.txt` | SSID/password pairs (alternating lines: ssid, password, ssid, password…); written via the LCD Settings menu |
 | `/mqtt.txt` | MQTT broker, port, username, password (one per line); written via the LCD Settings menu |
+| `/web.txt` | Optional web login: username, password (one per line); written via LCD Settings > Web Login. Missing = no login |
 | `/schedules.json` | Persistent schedule storage (loaded/saved via `convertFromJson`/`convertToJson`) |
 
 ## Key Conventions
@@ -59,12 +55,10 @@ Start times are stored as **minutes from midnight** (0–1439). Use `getStartTim
 Base topic prefix: `irrigation/` (hardcoded in `settings.h`). Command topic: `irrigation/command/#`. Status topics follow `irrigation/status/<key>`. Use `sendMQTTMessage(path, payload)` — path is appended to the base topic.
 
 ### Web Server
-Uses ESPAsyncWebServer. Real-time status is pushed via `AsyncEventSource` at `/events`. Template placeholders in HTML files (e.g., `%MODE%`, `%SET_ACTIVE%`) are resolved in lambda processors passed to `request->send(SPIFFS, ...)`.
+Uses ESPAsyncWebServer. The UI in `web/` is static (no server-side templating) and is served pre-gzipped from flash with ETag caching; edit `web/` and run a normal build/upload. Data comes from a JSON API under `/api/*` (mutations are `POST` with an `application/json` body), and live updates arrive via `AsyncEventSource` at `/events` (`status` = JSON `{scheduled, remaining}`, `channels` = `"01000000"`). An optional digest login (`/web.txt`) covers every route. Channel display names are `channelDisplayNames` in `settings.h`. See `doc/WebModernization.md`.
 
 ### SPIFFS Files
-All files in `data/` are uploaded to SPIFFS. HTML files in `data/` use `%VARIABLE%`-style template substitution. Always call `pio run --target uploadfs` after changing files in `data/`.
-
-**`uploadfs` flashes the whole SPIFFS image built from `data/`, so it wipes `/schedules.json`, `/wifi.txt` and `/mqtt.txt` created on the device.** Download schedules first (`/DownloadSchedules`; restore via `/UploadSchedules`) and expect to re-enter WiFi/MQTT settings on the LCD — without WiFi the device can no longer be reached over OTA.
+SPIFFS only holds the device-created files above; nothing on it is served over HTTP. **Do not run `pio run --target uploadfs`**: flashing a SPIFFS image wipes `/schedules.json`, `/wifi.txt`, `/mqtt.txt` and `/web.txt`. If you ever must, export schedules from the web UI first and expect to re-enter WiFi/MQTT settings on the LCD — without WiFi the device can no longer be reached over OTA.
 
 ### Menu System
 Menu screens are dynamically rebuilt when schedules change (`menu->GenerateIrrigationSubmenu()`). `isMenuActive` gates the display loop — when true, rotary encoder input is processed; when false, the default status display runs.

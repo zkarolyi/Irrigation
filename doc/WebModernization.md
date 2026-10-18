@@ -125,3 +125,16 @@ There are no automated tests, so verification is by build and by hand on the dev
 6. Stop WiFi or reboot the device: the "Offline" banner appears and the page recovers by itself.
 7. With `/web.txt` set, the browser asks for login, and `/events` and `/api/*` return 401 without credentials.
 8. Watch heap in `pio device monitor` (log `ESP.getFreeHeap()` hourly in `handleTimer`, temporarily) with 2–3 open tabs. There should be no steady decline.
+
+## Implementation notes (branch `feature/web-modernization`)
+
+All five phases are implemented, one commit each. Differences from the plan above:
+
+- **API paths** avoid prefix overlaps in the router: `POST /api/schedule/save`, `POST /api/schedule/delete`, `GET /api/export`, `POST /api/import`. Schedule bodies use the `schedules.json` field names (`startTime`, `daysToRun`, `weight`, `channelDurations`), so save and import share one validator (`scheduleFromJson()`).
+- **Channel names** are a C array (`channelDisplayNames` in `src/settings.h`), not an embedded JSON file parsed at boot. It is simpler and needs no parsing.
+- **Editor durations** use 1-minute steps, matching the LCD menu, instead of 5. With 5-minute steps the browser would block saving a schedule that has values set on the LCD.
+- **Phase 2** could not ship the old pages through the pipeline, because they depend on server-side templating. The pipeline was proven with `favicon.svg`, and the SPA followed in phase 3.
+- **The JS minifier** only removes whole-line `//` comments and indentation. Removing `/* */` broke code when a line comment contained `/*`.
+- **Mode switching** goes through `setScheduledMode()` for web, MQTT and LCD. A real switch stops all channels, which also fixes a valve staying open after switching from scheduled to manual.
+- **Result:** the web bundle is about 7.3 KB gzipped and flash use is 78.9 % (1 033 685 / 1 310 720 bytes).
+- **Not changed (out of scope):** MQTT run times are still unbounded, the manual-expiry check in `ManageManualChannels()` is still not wrap-safe, and OTA still has no password.
