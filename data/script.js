@@ -42,9 +42,16 @@ function insertChannelNames(channelNames) {
 
 const evtSource = new EventSource('/events');
 evtSource.addEventListener('status', function(e) {
-    document.getElementById('modeDisplay').textContent = 'Mode: ' + e.data;
+    const status = JSON.parse(e.data);
+    let mode = status.scheduled ? 'Scheduled' : 'Manual';
+    if (status.remaining > 0) {
+        const mm = String(Math.floor(status.remaining / 60)).padStart(2, '0');
+        const ss = String(status.remaining % 60).padStart(2, '0');
+        mode += ' (' + mm + ':' + ss + ' left)';
+    }
+    document.getElementById('modeDisplay').textContent = 'Mode: ' + mode;
     const btn = document.getElementById('scheduleBtn');
-    if (btn) btn.textContent = e.data.startsWith('Scheduled') ? 'Schedule Off' : 'Schedule On';
+    if (btn) btn.textContent = status.scheduled ? 'Schedule Off' : 'Schedule On';
 });
 
 evtSource.addEventListener('channels', function(e) {

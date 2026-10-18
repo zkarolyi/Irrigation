@@ -1,4 +1,6 @@
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
+#include <vector>
 
 void handle_OnRoot(AsyncWebServerRequest *request);
 void handle_OnToggleSwitch(AsyncWebServerRequest *request);
@@ -69,5 +71,30 @@ void handle_OnGetSettings(AsyncWebServerRequest *request);
 void handle_OnDeleteSchedule(AsyncWebServerRequest *request);
 void handle_OnDownloadSchedules(AsyncWebServerRequest *request);
 void handle_UploadSchedules(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final);
+
+void setScheduledMode(bool enabled);
+unsigned long remainingSeconds();
+String channelStates();
+String statusJson();
+void sendChannelEvent();
+
+// JSON API
+void addJsonPostHandler(const char *uri, ArJsonRequestHandlerFunction fn, size_t maxContentLength = 1024);
+void sendJson(AsyncWebServerRequest *request, const JsonDocument &doc, int code = 200);
+void sendJsonError(AsyncWebServerRequest *request, const char *message, int code = 400);
+void handle_ApiState(AsyncWebServerRequest *request);
+void handle_ApiChannel(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiMode(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiSchedules(AsyncWebServerRequest *request);
+void handle_ApiScheduleSave(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiScheduleDelete(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiDimming(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiExport(AsyncWebServerRequest *request);
+void handle_ApiImport(AsyncWebServerRequest *request, JsonVariant &json);
+
+// Channel display names, loaded at boot
+std::vector<String> channelNames;
+// Starting a manual run needs at least one minute
+const int manualStartDurationMin = 1;
 
 const char *schedulesFile = "/schedules.json";
