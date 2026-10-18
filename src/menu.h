@@ -46,6 +46,8 @@ extern void exitMenuCallback();
 extern void commandWifiCallback();
 extern void wifiInformationCallback();
 extern void commandMqttCallback();
+extern void commandWebLoginCallback();
+extern void commandWebLoginDisableCallback();
 extern void resetScreenCallback();
 extern void resetRtcCallback();
 extern void rebootCallback();
@@ -65,5 +67,6 @@ extern MenuScreen* scheduleEditScreen;
 extern MenuScreen* settingsScreen;
 extern MenuScreen* wifiSettingsScreen;
 extern MenuScreen* mqttSettingsScreen;
+extern MenuScreen* webLoginScreen;
 
 #endif // MENU_H

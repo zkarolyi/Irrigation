@@ -150,20 +150,16 @@ void InitializeWebServer()
   addJsonPostHandler("/api/dimming", handle_ApiDimming);
   addJsonPostHandler("/api/import", handle_ApiImport, 16384);
 
-  server.on("/ToggleSwitch", HTTP_GET, handle_OnToggleSwitch);
-  server.on("/SetScheduled", HTTP_GET, handle_OnSetScheduled);
-  server.on("/Schedule", HTTP_GET, handle_OnGetSchedule);
-  server.on("/Schedule", HTTP_POST, handle_OnSetSchedule);
-  server.on("/SetDimming", HTTP_GET, handle_OnSetDimming);
-  server.on("/ScheduleList", HTTP_GET, handle_onScheduleList);
-  server.on("/GetSettings", HTTP_GET, handle_OnGetSettings);
-  server.on("/DownloadSchedules", HTTP_GET, handle_OnDownloadSchedules);
-  server.on("/DeleteSchedule", HTTP_GET, handle_OnDeleteSchedule);
-  server.on("/UploadSchedules", HTTP_POST,
-    [](AsyncWebServerRequest *request) { request->redirect("/ScheduleList"); },
-    handle_UploadSchedules);
-  server.serveStatic("/", SPIFFS, "/");
+  // No serveStatic: SPIFFS holds wifi.txt/mqtt.txt/web.txt, which must never be served.
   server.onNotFound(handle_NotFound);
+
+  // Optional login for every route, including /events. Without /web.txt the middleware has
+  // no credentials and lets everything through.
+  webAuth.setRealm(HOSTNAME);
+  webAuth.setAuthType(AsyncAuthType::AUTH_DIGEST);
+  webAuth.setAuthFailureMessage("Authentication required");
+  readWebCredentials();
+  server.addMiddleware(&webAuth);
   screen->DisplayMessage("HTTP server initialized", true, true);
 }
 
@@ -389,6 +385,53 @@ void saveMqttCredentials(const char *broker, int port, const char *username, con
   Serial.println("MQTT credentials saved");
 }
 
+// Web login: /web.txt holds username and password on two lines. Missing file = no login.
+void applyWebCredentials(const String &username, const String &password)
+{
+  webAuth.setUsername(username.c_str());
+  webAuth.setPassword(password.c_str());
+  webAuth.generateHash(); // store the digest hash instead of the plain password
+}
+
+void readWebCredentials()
+{
+  File file = SPIFFS.open("/web.txt", FILE_READ);
+  if (!file)
+  {
+    applyWebCredentials("", "");
+    return;
+  }
+  String username = file.readStringUntil('\n');
+  String password = file.readStringUntil('\n');
+  file.close();
+  username.trim();
+  password.trim();
+  applyWebCredentials(username, password);
+  screen->DisplayMessage(webAuth.hasCredentials() ? "Web login enabled" : "Web login disabled", true, true);
+}
+
+// Empty username or password disables the login
+void saveWebCredentials(const char *username, const char *password)
+{
+  if (strlen(username) == 0 || strlen(password) == 0)
+  {
+    SPIFFS.remove("/web.txt");
+  }
+  else
+  {
+    File file = SPIFFS.open("/web.txt", FILE_WRITE);
+    if (!file)
+    {
+      screen->DisplayMessage("Failed to save web login", true, true);
+      return;
+    }
+    file.println(username);
+    file.println(password);
+    file.close();
+  }
+  readWebCredentials();
+}
+
 boolean readMqttCredentials()
 {
   if (!SPIFFS.exists("/mqtt.txt"))
@@ -439,274 +482,6 @@ boolean readMqttCredentials()
 // ##################################################################################
 
 // Handlers
-void handle_OnSetDimming(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle set dimming", true, true);
-  int dimm = request->hasArg("dimm") ? request->arg("dimm").toInt() : 255;
-  if (dimm < 0 || dimm > 255)
-  {
-    screen->DisplayMessage("Invalid dimming", true, true);
-    request->send(400, "text/html", "Invalid dimming");
-    return;
-  }
-  screen->DisplayDimm(dimm);
-  request->send(200, "text/html", "OK (" + String(dimm) + ")");
-  screen->DisplayMessage("Finished on: " + String(dimm), true, true);
-}
-
-void handle_OnGetSchedule(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle get schedule", true, true);
-
-  int id = request->hasArg("id") ? request->arg("id").toInt() : -1;
-
-  int sth = 0, stm = 0, dtr = 0, weight = 100;
-  std::vector<int> durations(irrigationChannelNumber, 0);
-
-  if (id >= 0 && id < schedules.getNumberOfSchedules())
-  {
-    IrrigationSchedule sch = schedules.getSchedule(id);
-    sth    = sch.getStartTimeHours();
-    stm    = sch.getStartTimeMinutes();
-    dtr    = (int)sch.getDaysToRun();
-    screen->DisplayMessage("R:" + String(dtr), true, false);
-    weight = sch.getWeight();
-    for (int i = 0; i < irrigationChannelNumber; i++)
-      durations[i] = sch.getChannelDuration(i);
-  }
-  else
-  {
-    id = -1;
-  }
-
-  request->send(SPIFFS, "/Schedule", "text/html", false,
-    [id, sth, stm, dtr, weight, durations](const String &var) -> String {
-      if (var == "ID")              return String(id);
-      if (var.startsWith("STH"))   return sth == var.substring(3).toInt() ? " selected" : "";
-      if (var.startsWith("STM"))   return stm == var.substring(3).toInt() ? " selected" : "";
-      if (var.startsWith("DTR"))   return dtr == var.substring(3).toInt() ? " selected" : "";
-      if (var.startsWith("W"))     return weight == var.substring(1).toInt() ? " selected" : "";
-      if (var.startsWith("DURATION")) {
-        int ch = var.substring(8).toInt() - 1;
-        if (ch >= 0 && ch < (int)durations.size()) return String(durations[ch]);
-      }
-      return String();
-    });
-
-  screen->DisplayMessage("Finished.", true, true);
-}
-
-void handle_OnSetSchedule(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle set schedule", true, true);
-  int id = request->hasArg("id") ? request->arg("id").toInt() : -1;
-  int getStartTime = request->hasArg("startTimeHour") && request->hasArg("startTimeMinute") ? request->arg("startTimeHour").toInt() * 60 + request->arg("startTimeMinute").toInt() : -1;
-  if (getStartTime < 0 || getStartTime > 1440)
-  {
-    screen->DisplayMessage("Invalid start time", true, true);
-    request->send(400, "text/html", "Invalid start time");
-    return;
-  }
-
-  for (int i = 0; i < irrigationChannelNumber; i++)
-  {
-    String argName = "duration" + String(i + 1);
-    if (!request->hasArg(argName) || request->arg(argName).length() == 0 || request->arg(argName).toInt() < manualIrrigationDurationMin || request->arg(argName).toInt() > manualIrrigationDurationMax)
-    {
-      screen->DisplayMessage("Invalid duration", true, true);
-      request->send(400, "text/html", "Invalid duration" + String(i + 1));
-      return;
-    }
-  }
-
-  IrrigationSchedule currSchedule;
-  if (id >= 0 && id < schedules.getNumberOfSchedules())
-  {
-    currSchedule = schedules.getSchedule(id);
-  }
-
-  currSchedule.setStartTime(getStartTime / 60, getStartTime % 60);
-  for (int i = 0; i < irrigationChannelNumber; i++)
-  {
-    currSchedule.addChannelDuration(i, request->arg("duration" + String(i + 1)).toInt());
-  }
-  currSchedule.setDaysToRun(request->arg("daysToRun").toInt());
-  currSchedule.setWeight(request->arg("weight").toInt());
-
-  if (id >= 0 && id < schedules.getNumberOfSchedules())
-  {
-    schedules.updateSchedule(id, currSchedule);
-  }
-  else
-  {
-    schedules.addSchedule(currSchedule);
-  }
-  SaveSchedules(schedules);
-  request->redirect("/ScheduleList");
-  screen->DisplayMessage("Finished.", true, true);
-}
-
-void handle_onScheduleList(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle schedule list", true, true);
-
-  String lines;
-  for (int i = 0; i < schedules.getNumberOfSchedules(); i++)
-  {
-    IrrigationSchedule sch = schedules.getSchedule(i);
-    lines += "<div class=\"listItem\">";
-    lines += String(sch.getStartTimeString().c_str()) + " ";
-    if (!rtc.lostPower())
-    {
-      for (int d = 0; d <= 3; ++d)
-      {
-        DateTime futureDay = rtc.now() + TimeSpan(d, 0, 0, 0);
-        lines += sch.isValidForDay(futureDay) ? "!" : "-";
-      }
-    }
-    lines += "</div>";
-    lines += "<div class=\"listItem\">";
-    lines += String(sch.getWeight());
-    lines += "</div>";
-    lines += "<div class=\"listItem\">";
-    lines += "<a href=\"Schedule?id=" + String(i) + "\" class=\"linkButton\">Details</a>";
-    lines += " <a href=\"DeleteSchedule?id=" + String(i) + "\" class=\"linkButton linkButton--danger\" onclick=\"return confirm('Delete this schedule?')\">Delete</a>";
-    lines += "</div>\n";
-  }
-
-  request->send(SPIFFS, "/ScheduleList", "text/html", false,
-    [lines](const String &var) -> String {
-      if (var == "SCHEDULES") return lines;
-      return String();
-    });
-
-  screen->DisplayMessage("Finished.", true, true);
-}
-
-void handle_OnDeleteSchedule(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  int id = request->hasArg("id") ? request->arg("id").toInt() : -1;
-  if (id < 0 || id >= schedules.getNumberOfSchedules())
-  {
-    request->send(400, "text/html", "Invalid schedule id");
-    return;
-  }
-  schedules.removeSchedule(id);
-  SaveSchedules(schedules);
-  screen->DisplayMessage("Schedule deleted", true, true);
-  request->redirect("/ScheduleList");
-}
-
-void handle_OnDownloadSchedules(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  request->send(SPIFFS, schedulesFile, "application/json", true);
-}
-
-void handle_UploadSchedules(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final)
-{
-  static File uploadFile;
-  if (!index)
-  {
-    displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-    screen->DisplayMessage("Uploading schedules", true, true);
-    uploadFile = SPIFFS.open(schedulesFile, "w");
-  }
-  if (uploadFile)
-  {
-    uploadFile.write(data, len);
-  }
-  if (final)
-  {
-    if (uploadFile)
-    {
-      uploadFile.close();
-    }
-    InitializeSchedules();
-    menu->GenerateIrrigationSubmenu();
-    screen->DisplayMessage("Schedules uploaded", true, true);
-  }
-}
-
-void handle_OnGetSettings(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle get settings", true, true);
-  String jsonString = convertToJson(schedules);
-  request->send(200, "text/html", jsonString);
-  screen->DisplayMessage("Finished.", true, true);
-}
-
-void handle_OnRoot(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Starting handle request", true, true);
-
-  String setActive;
-  for (int i = 0; i < irrigationChannelNumber; i++)
-  {
-    if (!digitalRead(schedules.getPin(i)))
-    {
-      Serial.println("Channel " + String(i + 1) + " is on");
-      setActive += "document.getElementById('ch" + String(i + 1) + "').classList.add('button-check');";
-    }
-  }
-
-  // Time left is filled in by the "status" SSE event sent on connect
-  String modeStr = irrigationScheduleEnabled ? "Scheduled" : "Manual";
-
-  request->send(SPIFFS, "/Index", "text/html", false,
-    [setActive, modeStr](const String &var) -> String {
-      if (var == "SET_ACTIVE") return setActive;
-      if (var == "MODE")       return modeStr;
-      return String();
-    });
-
-  screen->DisplayMessage("Finished.", true, true);
-}
-
-void handle_OnToggleSwitch(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle toggle", true, true);
-  int ch = request->hasArg("ch") ? request->arg("ch").toInt() - 1 : -1;
-  int duration = request->hasArg("duration") ? request->arg("duration").toInt() : manualIrrigationDurationDef;
-  if (ch < -1 || ch > 7)
-  {
-    screen->DisplayMessage("Invalid channel", true, true);
-    request->send(400, "application/json", "{\"error\": \"Invalid channel\"}");
-    return;
-  }
-  if (duration < manualIrrigationDurationMin || duration > manualIrrigationDurationMax)
-  {
-    screen->DisplayMessage("Invalid duration", true, true);
-    request->send(400, "application/json", "{\"error\": \"Invalid duration\"}");
-    return;
-  }
-
-  toggleChannel(ch, duration);
-
-  request->send(200, "application/json",
-              "{\"status\": \"OK\", \"channel\": " + String(ch + 1) + "}");
-  screen->DisplayMessage("Finished on: " + String(ch), true, true);
-}
-
-void handle_OnSetScheduled(AsyncWebServerRequest *request)
-{
-  displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
-  screen->DisplayMessage("Handle set scheduled", true, true);
-
-  setScheduledMode(!irrigationScheduleEnabled);
-  request->send(200, "application/json",
-              irrigationScheduleEnabled ? "{\"status\": \"OK\", \"scheduled\": true}" : "{\"status\": \"OK\", \"scheduled\": false}");
-  screen->DisplayMessage("Finished on set scheduled", true, true);
-}
-
 // Seconds left of the running channel (scheduled or manual), 0 when idle. Wrap-safe.
 unsigned long remainingSeconds()
 {

@@ -22,5 +22,6 @@ extern String wifiMacAddress;
 extern String wifiSsid;
 
 extern void saveMqttCredentials(const char *broker, int port, const char *username, const char *password);
+extern void saveWebCredentials(const char *username, const char *password);
 
 #endif

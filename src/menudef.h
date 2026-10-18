@@ -27,6 +27,7 @@ MENU_SCREEN(settingsScreen, settingsItems,
             ITEM_COMMAND("Wifi Information", wifiInformationCallback),
             ITEM_SUBMENU("Wifi Settings", wifiSettingsScreen),
             ITEM_SUBMENU("MQTT Settings", mqttSettingsScreen),
+            ITEM_SUBMENU("Web Login", webLoginScreen),
             ITEM_COMMAND("Reset Screen", resetScreenCallback),
             ITEM_COMMAND("Reset RTC", resetRtcCallback),
             ITEM_COMMAND("Reboot", rebootCallback),
@@ -50,4 +51,12 @@ MENU_SCREEN(mqttSettingsScreen, mqttSettingsItems,
             ITEM_INPUT_CHARSET("Username", ssidCharset, nullptr),
             ITEM_INPUT_CHARSET("Password", passwordCharset, nullptr),
             ITEM_COMMAND("Connect", commandMqttCallback),
+            ITEM_BACK("Cancel"));
+
+// Web login submenu (empty username or password disables the login)
+MENU_SCREEN(webLoginScreen, webLoginItems,
+            ITEM_INPUT_CHARSET("Username", ssidCharset, nullptr),
+            ITEM_INPUT_CHARSET("Password", passwordCharset, nullptr),
+            ITEM_COMMAND("Save", commandWebLoginCallback),
+            ITEM_COMMAND("Disable", commandWebLoginDisableCallback),
             ITEM_BACK("Cancel"));

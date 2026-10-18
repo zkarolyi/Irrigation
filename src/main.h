@@ -2,9 +2,6 @@
 #include <AsyncJson.h>
 #include "web_assets.h" // generated from web/ by scripts/embed_web.py
 
-void handle_OnRoot(AsyncWebServerRequest *request);
-void handle_OnToggleSwitch(AsyncWebServerRequest *request);
-void handle_OnSetScheduled(AsyncWebServerRequest *request);
 void handle_NotFound(AsyncWebServerRequest *request);
 void InitFS();
 
@@ -61,16 +58,10 @@ String wifiMacAddress;
 String wifiSsid;
 
 void InitializeWebServer();
-void handle_OnGetSchedule(AsyncWebServerRequest *request);
 extern AsyncEventSource events;
 void sendStatusEvent();
-void handle_OnSetSchedule(AsyncWebServerRequest *request);
-void handle_OnSetDimming(AsyncWebServerRequest *request);
-void handle_onScheduleList(AsyncWebServerRequest *request);
-void handle_OnGetSettings(AsyncWebServerRequest *request);
-void handle_OnDeleteSchedule(AsyncWebServerRequest *request);
-void handle_OnDownloadSchedules(AsyncWebServerRequest *request);
-void handle_UploadSchedules(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final);
+AsyncAuthenticationMiddleware webAuth;
+void readWebCredentials();
 
 void setScheduledMode(bool enabled);
 unsigned long remainingSeconds();
