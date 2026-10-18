@@ -21,6 +21,17 @@ const int manualIrrigationDurationMin = 0;
 const int manualIrrigationDurationMax = 90;
 const int manualIrrigationDurationDef = 20;
 
+// Channel names shown in the web UI (UTF-8), one per relay
+const char *const channelDisplayNames[] = {
+    "Hátsó kert elöl",
+    "Hátsó kert hátul",
+    "Előkert",
+    "Csepegtető",
+    "Oldalsó kert",
+    "Nincs",
+    "Nincs",
+    "Nincs"};
+
 constexpr const char* mqttTopic = "irrigation/";
 constexpr const char* mqttClientId = "IrrigationController";
 

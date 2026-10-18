@@ -70,21 +70,6 @@ void InitializeSchedules()
   convertFromJson(json, schedules);
 }
 
-void InitializeChannelNames()
-{
-  File file = SPIFFS.open("/channelNames.json");
-  if (!file)
-    return;
-  JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, file);
-  file.close();
-  if (error)
-    return;
-  channelNames.clear();
-  for (JsonVariant name : doc.as<JsonArray>())
-    channelNames.push_back(name.as<String>());
-}
-
 void UpdateTimeZone()
 {
   setenv("TZ", tz, 1);
@@ -145,6 +130,13 @@ void InitializeWebServer()
     client->send(channelStates().c_str(), "channels", millis());
   });
   server.addHandler(&events);
+
+  // Embedded, gzipped UI assets (web/)
+  for (size_t i = 0; i < webAssetCount; i++)
+  {
+    const WebAsset *asset = &webAssets[i];
+    server.on(asset->path, HTTP_GET, [asset](AsyncWebServerRequest *request) { sendWebAsset(request, *asset); });
+  }
 
   // JSON API
   server.on("/api/state", HTTP_GET, handle_ApiState);
@@ -763,6 +755,26 @@ void handle_NotFound(AsyncWebServerRequest *request)
   request->send(404, "text/plain", "Page not found");
 }
 
+// Serves a pre-gzipped asset. "no-cache" makes the browser revalidate with the ETag on every
+// load, so a repeat visit costs a 304 and a new firmware's UI shows up immediately.
+void sendWebAsset(AsyncWebServerRequest *request, const WebAsset &asset)
+{
+  AsyncWebServerResponse *response;
+  if (request->hasHeader("If-None-Match") && request->header("If-None-Match") == asset.etag)
+  {
+    response = request->beginResponse(304);
+  }
+  else
+  {
+    displayNetworkActivity = DISPLAY_TIMEOUT_INTERVAL;
+    response = request->beginResponse(200, asset.mime, asset.data, asset.length);
+    response->addHeader("Content-Encoding", "gzip");
+  }
+  response->addHeader("ETag", asset.etag);
+  response->addHeader("Cache-Control", "no-cache");
+  request->send(response);
+}
+
 // JSON API
 // Mutations are POST with an application/json body only: AsyncCallbackJsonWebHandler rejects
 // other content types, and a cross-origin page cannot send JSON without a CORS preflight.
@@ -798,7 +810,7 @@ void buildStateJson(JsonDocument &doc)
   for (int i = 0; i < irrigationChannelNumber; i++)
   {
     channels.add(digitalRead(schedules.getPin(i)) == LOW ? 1 : 0);
-    names.add(i < (int)channelNames.size() ? channelNames[i] : String(i + 1));
+    names.add(i < (int)(sizeof(channelDisplayNames) / sizeof(channelDisplayNames[0])) ? channelDisplayNames[i] : "");
   }
   doc["durationMin"] = manualStartDurationMin;
   doc["durationMax"] = manualIrrigationDurationMax;
@@ -1484,7 +1496,6 @@ void setup()
   InitializeRTC();
 
   InitializeSchedules();
-  InitializeChannelNames();
 
   menu = new Menu();
   menu->renderer.begin();

@@ -1,6 +1,6 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
-#include <vector>
+#include "web_assets.h" // generated from web/ by scripts/embed_web.py
 
 void handle_OnRoot(AsyncWebServerRequest *request);
 void handle_OnToggleSwitch(AsyncWebServerRequest *request);
@@ -91,9 +91,8 @@ void handle_ApiScheduleDelete(AsyncWebServerRequest *request, JsonVariant &json)
 void handle_ApiDimming(AsyncWebServerRequest *request, JsonVariant &json);
 void handle_ApiExport(AsyncWebServerRequest *request);
 void handle_ApiImport(AsyncWebServerRequest *request, JsonVariant &json);
+void sendWebAsset(AsyncWebServerRequest *request, const WebAsset &asset);
 
-// Channel display names, loaded at boot
-std::vector<String> channelNames;
 // Starting a manual run needs at least one minute
 const int manualStartDurationMin = 1;
 
