@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#2e7d32">
+<title>Irrigation</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <h1>Irrigation</h1>
+  <nav>
+    <a href="#/" data-nav="control">Control</a>
+    <a href="#/schedules" data-nav="schedules">Schedules</a>
+  </nav>
+</header>
+<div id="offline" class="offline" hidden>Offline &ndash; reconnecting&hellip;</div>
+<main id="view" aria-live="polite"><p class="muted">Loading&hellip;</p></main>
+<div id="toast" class="toast" role="status" hidden></div>
+<dialog id="confirm">
+  <form method="dialog">
+    <p id="confirmText"></p>
+    <div class="row end">
+      <button value="cancel" class="btn">Cancel</button>
+      <button value="ok" class="btn danger">Delete</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

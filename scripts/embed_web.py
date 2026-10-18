@@ -31,8 +31,9 @@ MIME_TYPES = {
 
 
 def minify(text, ext):
-    # Conservative: only comments and indentation, gzip does the rest
-    if ext in (".css", ".js"):
+    # Conservative: only comments and indentation, gzip does the rest. For JS only whole-line
+    # // comments are dropped; stripping /* */ could hit "/*" inside strings or line comments.
+    if ext == ".css":
         text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
     if ext == ".html":
         text = re.sub(r"<!--.*?-->", "", text, flags=re.S)

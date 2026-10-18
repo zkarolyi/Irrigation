@@ -124,7 +124,6 @@ bool InitializeWiFi()
 
 void InitializeWebServer()
 {
-  server.on("/", HTTP_GET, handle_OnRoot);
   events.onConnect([](AsyncEventSourceClient *client) {
     client->send(statusJson().c_str(), "status", millis(), 1000);
     client->send(channelStates().c_str(), "channels", millis());
@@ -136,6 +135,8 @@ void InitializeWebServer()
   {
     const WebAsset *asset = &webAssets[i];
     server.on(asset->path, HTTP_GET, [asset](AsyncWebServerRequest *request) { sendWebAsset(request, *asset); });
+    if (strcmp(asset->path, "/index.html") == 0)
+      server.on("/", HTTP_GET, [asset](AsyncWebServerRequest *request) { sendWebAsset(request, *asset); });
   }
 
   // JSON API
