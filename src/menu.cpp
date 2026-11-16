@@ -24,6 +24,20 @@ void commandMqttCallback()
     exitMenuCallback();
 }
 
+void commandWebLoginCallback()
+{
+    char *username = (static_cast<ItemInputCharset *>(webLoginItems[0]))->getValue();
+    char *password = (static_cast<ItemInputCharset *>(webLoginItems[1]))->getValue();
+    saveWebCredentials(username ? username : "", password ? password : "");
+    exitMenuCallback();
+}
+
+void commandWebLoginDisableCallback()
+{
+    saveWebCredentials("", "");
+    exitMenuCallback();
+}
+
 void toggleCallback(bool isOn, int index)
 {
     Serial.printf("Channel %d %s\n", index, isOn ? "started" : "stopped");

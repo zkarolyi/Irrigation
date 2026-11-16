@@ -1,8 +1,7 @@
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
+#include "web_assets.h" // generated from web/ by scripts/embed_web.py
 
-void handle_OnRoot(AsyncWebServerRequest *request);
-void handle_OnToggleSwitch(AsyncWebServerRequest *request);
-void handle_OnSetScheduled(AsyncWebServerRequest *request);
 void handle_NotFound(AsyncWebServerRequest *request);
 void InitFS();
 
@@ -42,6 +41,8 @@ bool irrigationScheduleEnabled = true;
 unsigned long irrigationCheckInterval = 10000;
 unsigned long irrigationLastCheck = 0;
 unsigned long irrigationManualEnd = 0;
+unsigned long irrigationScheduledEnd = 0;
+unsigned long irrigationTimeLeftLastSend = 0;
 
 int displayDimmPin = 5;
 int displayNetworkActivity = 0;
@@ -57,22 +58,33 @@ String wifiMacAddress;
 String wifiSsid;
 
 void InitializeWebServer();
-void handle_OnGetSchedule(AsyncWebServerRequest *request);
 extern AsyncEventSource events;
 void sendStatusEvent();
-void handle_OnSetSchedule(AsyncWebServerRequest *request);
-void handle_OnSetDimming(AsyncWebServerRequest *request);
-void handle_onScheduleList(AsyncWebServerRequest *request);
-void handle_OnGetSettings(AsyncWebServerRequest *request);
-void handle_OnDeleteSchedule(AsyncWebServerRequest *request);
-void handle_OnDownloadSchedules(AsyncWebServerRequest *request);
-void handle_UploadSchedules(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final);
+AsyncAuthenticationMiddleware webAuth;
+void readWebCredentials();
+
+void setScheduledMode(bool enabled);
+unsigned long remainingSeconds();
+String channelStates();
+String statusJson();
+void sendChannelEvent();
+
+// JSON API
+void addJsonPostHandler(const char *uri, ArJsonRequestHandlerFunction fn, size_t maxContentLength = 1024);
+void sendJson(AsyncWebServerRequest *request, const JsonDocument &doc, int code = 200);
+void sendJsonError(AsyncWebServerRequest *request, const char *message, int code = 400);
+void handle_ApiState(AsyncWebServerRequest *request);
+void handle_ApiChannel(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiMode(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiSchedules(AsyncWebServerRequest *request);
+void handle_ApiScheduleSave(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiScheduleDelete(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiDimming(AsyncWebServerRequest *request, JsonVariant &json);
+void handle_ApiExport(AsyncWebServerRequest *request);
+void handle_ApiImport(AsyncWebServerRequest *request, JsonVariant &json);
+void sendWebAsset(AsyncWebServerRequest *request, const WebAsset &asset);
+
+// Starting a manual run needs at least one minute
+const int manualStartDurationMin = 1;
 
 const char *schedulesFile = "/schedules.json";
-
-String LongToString(long number, int digits)
-{
-    char buffer[digits + 1];
-    sprintf(buffer, "%0*d", digits, number);
-    return String(buffer);
-}
